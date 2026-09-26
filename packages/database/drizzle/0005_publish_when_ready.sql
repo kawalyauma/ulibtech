@@ -1,0 +1,1 @@
+ALTER TABLE "resources" ADD COLUMN "publish_when_ready" boolean DEFAULT false NOT NULL;

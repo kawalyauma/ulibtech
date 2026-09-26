@@ -1,0 +1,22 @@
+{
+  "name": "@edushare/documents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@edushare/shared": "workspace:*",
+    "@napi-rs/canvas": "^0.1.100",
+    "file-type": "^21.3.4",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.12.3",
+    "pdfjs-dist": "5.7.284",
+    "sharp": "^0.34.5",
+    "xlsx": "0.18.5"
+  }
+}

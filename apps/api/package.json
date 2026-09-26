@@ -1,0 +1,37 @@
+{
+  "name": "@edushare/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "admin:create": "tsx --env-file-if-exists=../../.env src/scripts/create-admin.ts"
+  },
+  "dependencies": {
+    "@edushare/analytics": "workspace:*",
+    "@edushare/auth": "workspace:*",
+    "@edushare/cache": "workspace:*",
+    "@edushare/database": "workspace:*",
+    "@edushare/documents": "workspace:*",
+    "@edushare/jobs": "workspace:*",
+    "@edushare/resources": "workspace:*",
+    "@edushare/search": "workspace:*",
+    "@edushare/seo": "workspace:*",
+    "@edushare/shared": "workspace:*",
+    "@edushare/storage": "workspace:*",
+    "@hono/node-server": "^1.19.6",
+    "busboy": "^1.6.0",
+    "hono": "^4.13.9",
+    "zod": "^4.6.5",
+    "sharp": "^0.34.5",
+    "@edushare/notifications": "workspace:*",
+    "drizzle-orm": "^0.45.3"
+  },
+  "devDependencies": {
+    "@types/busboy": "^1.5.4",
+    "tsup": "^8.5.0"
+  }
+}

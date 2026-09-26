@@ -1,0 +1,17 @@
+{
+  "name": "@edushare/search",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@edushare/cache": "workspace:*",
+    "@edushare/database": "workspace:*",
+    "@edushare/shared": "workspace:*"
+  }
+}
