@@ -3,9 +3,14 @@ import { aggregateAnalytics, purgeRawEvents } from '@edushare/analytics';
 import { purgeExpiredSessions } from '@edushare/auth';
 import type { JobName, JobPayloads } from '@edushare/jobs';
 import { getNotifier } from '@edushare/notifications';
-import { checkFiles, processFile, type ServiceContext } from '@edushare/resources';
+import {
+  checkFiles,
+  enrichResource,
+  noResultReport,
+  processFile,
+  type ServiceContext,
+} from '@edushare/resources';
 import { getServerEnv } from '@edushare/shared';
-import type { LocalFilesystemStorageProvider } from '@edushare/storage';
 
 type Handler<N extends JobName> = (data: JobPayloads[N], job: Job) => Promise<unknown>;
 
@@ -60,8 +65,8 @@ export function createHandlers(ctx: ServiceContext): { [N in JobName]: Handler<N
       return result;
     },
     'cleanup-temporary': async (data) => {
-      const storage = ctx.storage as LocalFilesystemStorageProvider;
-      if (typeof storage.list !== 'function') return { removed: 0 };
+      const storage = ctx.storage;
+      if (!storage.list) return { removed: 0 };
       const cutoff = Date.now() - (data.olderThanHours ?? 24) * 3_600_000;
       const items = await storage.list('temporary');
       let removed = 0;
@@ -72,6 +77,22 @@ export function createHandlers(ctx: ServiceContext): { [N in JobName]: Handler<N
         }
       }
       return { removed };
+    },
+    'ai-enrich': async (data) => enrichResource(ctx, data.resourceId),
+    'no-result-report': async (data) => {
+      const report = await noResultReport(ctx, data.days ?? 7);
+      if (report.items.length) {
+        await getNotifier().notifyAdmins({
+          subject: `Weekly report: ${report.items.length} searches found nothing`,
+          body: report.items
+            .slice(0, 20)
+            .map((i) => `• "${i.query}" – ${i.count} searches`)
+            .join('\n'),
+          severity: 'info',
+          meta: { days: report.days },
+        });
+      }
+      return { items: report.items.length };
     },
     'delete-storage-objects': async (data) => {
       for (const key of data.keys) await ctx.storage.delete(key);

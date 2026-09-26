@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import JSZip from 'jszip';
 import mammoth from 'mammoth';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { convertWithLibreOffice } from './office';
 import type { AllowedFileKind } from '@edushare/shared';
 import { loadPdfJs, standardFontDataUrl } from './pdfjs';
 
@@ -63,7 +64,7 @@ async function officeCoreProps(zip: JSZip): Promise<ExtractionResult['metadata']
   };
 }
 
-async function extractPdf(file: string): Promise<ExtractionResult> {
+export async function extractPdf(file: string): Promise<ExtractionResult> {
   const pdfjs = await loadPdfJs();
   const data = new Uint8Array(await fs.readFile(file));
   const doc = await pdfjs.getDocument({
@@ -151,21 +152,57 @@ async function extractOdt(file: string): Promise<ExtractionResult> {
   return { text: normaliseText(text), pageCount: null, metadata: {} };
 }
 
-async function extractSpreadsheet(file: string): Promise<ExtractionResult> {
-  const wb = XLSX.read(await fs.readFile(file), {
-    type: 'buffer',
-    cellFormula: false,
-    cellHTML: false,
-  });
-  const parts = wb.SheetNames.map((name) => {
-    const sheet = wb.Sheets[name];
-    return sheet ? `${name}\n${XLSX.utils.sheet_to_csv(sheet, { blankrows: false })}` : name;
+function cellText(value: ExcelJS.CellValue): string {
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === 'object') {
+    if ('richText' in value) return value.richText.map((r) => r.text).join('');
+    if ('text' in value && typeof value.text === 'string') return value.text;
+    if ('result' in value) return cellText(value.result as ExcelJS.CellValue);
+    return '';
+  }
+  return String(value);
+}
+
+async function extractXlsx(file: string): Promise<ExtractionResult> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(file);
+  const parts: string[] = [];
+  let chars = 0;
+  wb.eachSheet((sheet) => {
+    if (chars > MAX_EXTRACTED_CHARS) return;
+    const rows: string[] = [sheet.name];
+    sheet.eachRow({ includeEmpty: false }, (row) => {
+      const values = (row.values as ExcelJS.CellValue[]).slice(1).map(cellText).filter(Boolean);
+      if (values.length) rows.push(values.join(' | '));
+    });
+    const text = rows.join('\n');
+    chars += text.length;
+    parts.push(text);
   });
   return {
     text: normaliseText(parts.join('\n')),
-    pageCount: wb.SheetNames.length || null,
-    metadata: { title: wb.Props?.Title, author: wb.Props?.Author, subject: wb.Props?.Subject },
+    pageCount: wb.worksheets.length || null,
+    metadata: {
+      title: wb.title || undefined,
+      author: wb.creator || undefined,
+      subject: wb.subject || undefined,
+    },
   };
+}
+
+/** Legacy binary formats (.doc/.ppt/.xls) are converted with LibreOffice when installed. */
+async function extractViaLibreOffice(
+  file: string,
+  target: 'pdf' | 'xlsx',
+): Promise<ExtractionResult> {
+  const converted = await convertWithLibreOffice(file, target);
+  if (!converted) return { text: '', pageCount: null, metadata: { conversion: 'unavailable' } };
+  try {
+    return target === 'pdf' ? await extractPdf(converted) : await extractXlsx(converted);
+  } finally {
+    await fs.rm(converted, { force: true });
+  }
 }
 
 async function extractImage(file: string): Promise<ExtractionResult> {
@@ -187,8 +224,9 @@ export async function extractDocument(
     case 'pptx':
       return extractPptx(file);
     case 'xlsx':
+      return extractXlsx(file);
     case 'xls':
-      return extractSpreadsheet(file);
+      return extractViaLibreOffice(file, 'xlsx');
     case 'odt':
       return extractOdt(file);
     case 'jpg':
@@ -203,7 +241,6 @@ export async function extractDocument(
       };
     case 'doc':
     case 'ppt':
-      // Legacy binary formats: metadata only; text extraction can be added via a converter later.
-      return { text: '', pageCount: null, metadata: {} };
+      return extractViaLibreOffice(file, 'pdf');
   }
 }

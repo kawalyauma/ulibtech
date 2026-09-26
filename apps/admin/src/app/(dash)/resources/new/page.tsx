@@ -44,6 +44,38 @@ export default function NewResourcePage() {
     defaultValues: { title: '', status: 'draft' },
   });
 
+  const [autoFilled, setAutoFilled] = useState<string[]>([]);
+  // Pre-fill empty classification fields from the title and file name (e.g. "P6 SST Term 2 2026").
+  const suggest = async (title: string, fileName?: string) => {
+    if (!title && !fileName) return;
+    const res = await api
+      .post<
+        { labels: Record<string, string> } & Partial<
+          Record<
+            'classId' | 'subjectId' | 'resourceTypeId' | 'academicYearId' | 'termId' | 'topicId',
+            string
+          >
+        >
+      >('/resources/classify', { title, fileName })
+      .catch(() => null);
+    if (!res) return;
+    const filled: string[] = [];
+    for (const field of [
+      'classId',
+      'subjectId',
+      'resourceTypeId',
+      'academicYearId',
+      'termId',
+      'topicId',
+    ] as const) {
+      if (res[field] && !form.getValues(field)) {
+        form.setValue(field, res[field]);
+        filled.push(res.labels[field] ?? field);
+      }
+    }
+    setAutoFilled(filled);
+  };
+
   const onFile = async (f: File | null) => {
     setFileError(null);
     setFile(f);
@@ -51,6 +83,7 @@ export default function NewResourcePage() {
     if (f.size > MAX_MB * 1024 * 1024) setFileError(`This file is larger than ${MAX_MB} MB.`);
     if (!form.getValues('title'))
       form.setValue('title', titleFromFileName(f.name), { shouldValidate: true });
+    void suggest(form.getValues('title'), f.name);
     // Early duplicate warning by title.
     const res = await api
       .post<{ items: DuplicateCandidate[] }>('/resources/duplicates', {
@@ -110,7 +143,22 @@ export default function NewResourcePage() {
         noValidate
       >
         <Card className="p-5">
-          <ResourceFields form={form} serverErrors={serverErrors} />
+          {autoFilled.length ? (
+            <p
+              className="bg-secondary text-secondary-foreground mb-4 rounded-md px-3 py-2 text-sm"
+              role="status"
+            >
+              Auto-filled from the title/file name: {autoFilled.join(', ')}. Check before uploading.
+            </p>
+          ) : null}
+          <div
+            onBlur={(e) =>
+              (e.target as HTMLElement).id === 'title' &&
+              void suggest(form.getValues('title'), file?.name)
+            }
+          >
+            <ResourceFields form={form} serverErrors={serverErrors} />
+          </div>
         </Card>
         <div className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
           <Card className="flex flex-col gap-3 p-5">

@@ -31,7 +31,14 @@ export function loadVocabulary(db: Database): Promise<Vocabulary> {
       db.select().from(schoolLevels).orderBy(asc(schoolLevels.sortOrder)),
       db.select().from(academicYears).orderBy(asc(academicYears.year)),
       db.select().from(curricula),
-      db.select({ id: topics.id, slug: topics.slug, name: topics.name }).from(topics),
+      db
+        .select({
+          id: topics.id,
+          slug: topics.slug,
+          name: topics.name,
+          subjectId: topics.subjectId,
+        })
+        .from(topics),
       db
         .select({ classSlug: classes.slug, subjectSlug: subjects.slug })
         .from(classSubjects)
@@ -85,7 +92,10 @@ export function loadVocabulary(db: Database): Promise<Vocabulary> {
       levels: lvls.map((l) => entry(l.id, l.slug, l.name, l.name, [l.name])),
       years: yrs.map((y) => ({ id: y.id, year: y.year })),
       curricula: curs.map((c) => entry(c.id, c.slug, c.name, c.name, [c.name])),
-      topics: tps.map((t) => entry(t.id, t.slug, t.name, t.name, [t.name])),
+      topics: tps.map((t) => ({
+        ...entry(t.id, t.slug, t.name, t.name, [t.name]),
+        parentId: t.subjectId,
+      })),
       classSubjects: classSubjectsMap,
     };
   })();

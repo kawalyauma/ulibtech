@@ -87,6 +87,8 @@ export const resources = pgTable(
 
     status: resourceStatusEnum('status').notNull().default('draft'),
     featured: boolean('featured').notNull().default(false),
+    /** Classification/summary suggestions from rules and (optionally) AI, for admin review. */
+    suggestions: jsonb('suggestions').$type<Record<string, unknown>>(),
     /** Publish automatically once background processing (incl. security scan) succeeds. */
     publishWhenReady: boolean('publish_when_ready').notNull().default(false),
 
@@ -152,6 +154,10 @@ export const resourceFiles = pgTable(
     pageCount: integer('page_count'),
     metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
     extractedText: text('extracted_text'),
+    /** PDF rendition of Office documents (storage key), used for previews and thumbnails. */
+    previewKey: varchar('preview_key', { length: 400 }),
+    /** True when the extracted text came from OCR. */
+    ocrApplied: boolean('ocr_applied').notNull().default(false),
     processingStatus: processingStatusEnum('processing_status').notNull().default('pending'),
     processingError: text('processing_error'),
     processedAt: timestamp('processed_at', { withTimezone: true }),

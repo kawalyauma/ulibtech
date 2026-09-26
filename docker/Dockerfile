@@ -48,6 +48,16 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD node -e "fetch('h
 CMD ["node", "dist/index.js"]
 
 FROM runtime-node AS worker
+USER root
+# LibreOffice converts Office files to PDF (previews, thumbnails, legacy .doc/.ppt/.xls text).
+# Tesseract enables optional OCR of scanned PDFs (set OCR_ENABLED=true).
+ARG INSTALL_LIBREOFFICE=true
+ARG INSTALL_TESSERACT=true
+RUN apt-get update && \
+    if [ "$INSTALL_LIBREOFFICE" = "true" ]; then apt-get install -y --no-install-recommends libreoffice-writer libreoffice-impress libreoffice-calc fonts-crosextra-carlito fonts-crosextra-caladea; fi && \
+    if [ "$INSTALL_TESSERACT" = "true" ]; then apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng; fi && \
+    rm -rf /var/lib/apt/lists/*
+USER node
 COPY --from=build-node --chown=node:node /out/worker /app
 ENV STORAGE_ROOT=/opt/edushare/storage
 CMD ["node", "dist/index.js"]

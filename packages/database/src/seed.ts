@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { DEFAULT_ROLES, PERMISSIONS } from '@edushare/shared';
+import { DEFAULT_ROLES, PERMISSIONS, slugify } from '@edushare/shared';
 import type { Database } from './client';
 import * as s from './schema';
 import {
@@ -12,6 +12,7 @@ import {
   RESOURCE_TYPES,
   SUBJECTS,
   TERMS,
+  TOPICS,
   YEARS,
 } from './seed-data';
 
@@ -123,6 +124,28 @@ export async function seedDatabase(db: Database): Promise<void> {
     }
     for (const c of CURRICULA) {
       await tx.insert(s.curricula).values(c).onConflictDoNothing();
+    }
+
+    // Starter topics (slug is globally unique; a colliding name is prefixed with the subject).
+    const usedSlugs = new Set(
+      (await tx.select({ slug: s.topics.slug }).from(s.topics)).map((t) => t.slug),
+    );
+    for (const [subjectSlug, names] of Object.entries(TOPICS)) {
+      const subjectId = subjectIds.get(subjectSlug);
+      if (!subjectId) continue;
+      for (const name of names) {
+        const exists = await tx
+          .select({ id: s.topics.id })
+          .from(s.topics)
+          .where(sql`${s.topics.name} = ${name} AND ${s.topics.subjectId} = ${subjectId}`)
+          .limit(1);
+        if (exists.length) continue;
+        const base = slugify(name);
+        const slug = usedSlugs.has(base) ? `${subjectSlug}-${base}` : base;
+        if (usedSlugs.has(slug)) continue;
+        usedSlugs.add(slug);
+        await tx.insert(s.topics).values({ name, slug, subjectId }).onConflictDoNothing();
+      }
     }
 
     await tx

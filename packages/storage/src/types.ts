@@ -47,6 +47,10 @@ export interface StorageProvider {
   localPath?(key: string): string;
   /** Internal path for Nginx X-Accel-Redirect, when supported. */
   accelRedirectPath?(key: string): string | null;
+  /** Direct, time-limited URL (object storage); callers redirect instead of streaming. */
+  presignedUrl?(key: string, opts?: { fileName?: string; contentType?: string; inline?: boolean; expiresIn?: number }): Promise<string>;
+  /** Lists objects under a key prefix (maintenance jobs). */
+  list?(prefix: string): Promise<StorageObjectMetadata[]>;
 }
 
 export class StorageKeyError extends Error {

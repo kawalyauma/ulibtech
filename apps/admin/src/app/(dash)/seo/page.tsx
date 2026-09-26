@@ -75,6 +75,20 @@ export default function SeoPage() {
     mutationFn: () => api.post('/system/refresh-sitemap'),
     onSuccess: () => toast.success('Sitemap refresh queued'),
   });
+  const suggestions = useQuery({
+    queryKey: ['seo-suggestions'],
+    queryFn: () =>
+      api.get<{
+        items: {
+          path: string;
+          heading: string;
+          resources: number;
+          searches: number;
+          hasOverride: boolean;
+          reason: string;
+        }[];
+      }>('/seo/suggestions'),
+  });
   const auto = preview.data?.landing;
   return (
     <>
@@ -154,6 +168,49 @@ export default function SeoPage() {
           </>
         ) : null}
       </Card>
+      {suggestions.data?.items.length ? (
+        <Card className="mb-6 overflow-hidden">
+          <p className="border-b px-4 py-3 text-sm font-semibold">
+            Pages worth writing custom text for (by search demand and content)
+          </p>
+          <Table>
+            <THead>
+              <Tr>
+                <Th>Page</Th>
+                <Th>Why</Th>
+                <Th className="text-right">Resources</Th>
+                <Th />
+              </Tr>
+            </THead>
+            <TBody>
+              {suggestions.data.items.slice(0, 15).map((sug) => (
+                <Tr key={sug.path}>
+                  <Td>
+                    <span className="font-medium">{sug.heading}</span>{' '}
+                    <span className="text-muted-foreground font-mono text-xs">{sug.path}</span>
+                  </Td>
+                  <Td className="text-muted-foreground text-xs">
+                    {sug.hasOverride ? 'Customised ✓' : sug.reason}
+                  </Td>
+                  <Td className="text-right tabular-nums">{sug.resources}</Td>
+                  <Td className="text-right">
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => {
+                        setPath(sug.path);
+                        preview.mutate(sug.path);
+                      }}
+                    >
+                      Write SEO text
+                    </Button>
+                  </Td>
+                </Tr>
+              ))}
+            </TBody>
+          </Table>
+        </Card>
+      ) : null}
       <Card className="overflow-hidden">
         <Table>
           <THead>

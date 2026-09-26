@@ -20,7 +20,12 @@ import {
   updateSetting,
   updateTaxonomy,
   PUBLIC_CACHE_NS,
+  aiEnabled,
+  noResultReport,
+  seoSuggestions,
+  toCsv,
 } from '@edushare/resources';
+import { findLibreOffice, findTesseract } from '@edushare/documents';
 import {
   AppError,
   adminCreateSchema,
@@ -160,6 +165,44 @@ export function adminMiscRoutes(services: Services) {
   app.post('/analytics/aggregate', requirePermission('analytics.read'), async (c) => {
     await aggregateAnalytics(db, 2);
     return c.json({ ok: true });
+  });
+
+  // ---------------------------------------------------------------- reports
+  app.get('/reports/no-results', requirePermission('analytics.read'), async (c) => {
+    const days = parse(
+      z.object({ days: z.coerce.number().int().min(1).max(365).default(7) }),
+      query(c),
+    ).days;
+    const report = await noResultReport(ctx, days);
+    if (c.req.query('format') === 'csv') {
+      c.header('Content-Type', 'text/csv; charset=utf-8');
+      c.header('Content-Disposition', `attachment; filename="no-result-searches-${days}d.csv"`);
+      return c.body(
+        toCsv(
+          report.items.map((i) => ({
+            query: i.query,
+            searches: i.count,
+            visitors: i.visitors,
+            last_searched: i.lastSearchedAt,
+          })),
+        ),
+      );
+    }
+    return c.json(report);
+  });
+  app.get('/seo/suggestions', requirePermission('seo.manage'), async (c) =>
+    c.json({ items: await seoSuggestions(ctx) }),
+  );
+
+  app.get('/system/features', requirePermission('resources.read'), async (c) => {
+    const [libreoffice, tesseract] = await Promise.all([findLibreOffice(), findTesseract()]);
+    return c.json({
+      search: process.env.SEARCH_PROVIDER ?? 'postgres',
+      storage: process.env.STORAGE_DRIVER ?? 'local',
+      officePreviews: Boolean(libreoffice),
+      ocr: process.env.OCR_ENABLED === 'true' && Boolean(tesseract),
+      ai: aiEnabled(),
+    });
   });
 
   // ---------------------------------------------------------------- settings

@@ -24,6 +24,17 @@ function SettingsForm({ initial }: { initial: SiteSettings }) {
     onSuccess: () => toast.success('Settings saved'),
     onError: (e) => toast.error(errorMessage(e)),
   });
+  const features = useQuery({
+    queryKey: ['features'],
+    queryFn: () =>
+      api.get<{
+        search: string;
+        storage: string;
+        officePreviews: boolean;
+        ocr: boolean;
+        ai: boolean;
+      }>('/system/features'),
+  });
   const reindex = useMutation({
     mutationFn: () => api.post('/system/reindex'),
     onSuccess: () => toast.success('Search index rebuild queued'),
@@ -105,6 +116,27 @@ function SettingsForm({ initial }: { initial: SiteSettings }) {
           </div>
         </Card>
         <div className="flex flex-col gap-6">
+          {features.data ? (
+            <Card className="flex flex-col gap-2 p-5 text-sm">
+              <h2 className="font-semibold">Server features</h2>
+              <p>
+                Search engine: <strong>{features.data.search}</strong> · Storage:{' '}
+                <strong>{features.data.storage}</strong>
+              </p>
+              <p>
+                Office previews (LibreOffice):{' '}
+                {features.data.officePreviews ? 'On' : 'Off – install LibreOffice in the worker'}
+              </p>
+              <p>
+                OCR for scanned PDFs:{' '}
+                {features.data.ocr ? 'On' : 'Off – set OCR_ENABLED=true (Tesseract)'}
+              </p>
+              <p>
+                AI summaries:{' '}
+                {features.data.ai ? 'On' : 'Off – set AI_ENRICH_ENABLED=true and ANTHROPIC_API_KEY'}
+              </p>
+            </Card>
+          ) : null}
           <Card className="flex flex-col gap-3 p-5">
             <h2 className="font-semibold">Maintenance</h2>
             <p className="text-muted-foreground text-sm">These run in the background worker.</p>

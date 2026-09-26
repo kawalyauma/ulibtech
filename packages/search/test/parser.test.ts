@@ -75,6 +75,17 @@ describe('parseQuery', () => {
     expect(p.entities.year).toBe(2026);
   });
 
+  it('prefers an explicit term over the "end of term" alias', () => {
+    const idx = buildPhraseIndex({
+      ...vocab,
+      types: [...vocab.types, e('past-papers-eot', 'EOT', ['end of term'])],
+    });
+    const p = parseQuery('primary six end of term ii examination 2026', idx, expandNumberWords);
+    expect(p.entities.class?.slug).toBe('p6');
+    expect(p.entities.term?.slug).toBe('term-2');
+    expect(p.entities.year).toBe(2026);
+  });
+
   it('detects advanced syntax', () => {
     expect(parseQuery('"acids and bases" -organic', index).advanced).toBe(true);
   });

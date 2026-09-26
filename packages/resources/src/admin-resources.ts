@@ -307,7 +307,7 @@ export async function deleteResource(ctx: ServiceContext, actor: Actor, id: stri
   });
   if (!row) throw AppError.notFound('Resource');
   const files = await ctx.db
-    .select({ key: resourceFiles.storageKey })
+    .select({ key: resourceFiles.storageKey, preview: resourceFiles.previewKey })
     .from(resourceFiles)
     .where(eq(resourceFiles.resourceId, id));
   const thumb = row.thumbnailId
@@ -318,7 +318,10 @@ export async function deleteResource(ctx: ServiceContext, actor: Actor, id: stri
     await tx.delete(resources).where(eq(resources.id, id));
     if (thumb) await tx.delete(mediaAssets).where(eq(mediaAssets.id, thumb.id));
   });
-  const keys = [...files.map((f) => f.key), ...(thumb?.variants.map((v) => v.key) ?? [])];
+  const keys = [
+    ...files.flatMap((f) => (f.preview ? [f.key, f.preview] : [f.key])),
+    ...(thumb?.variants.map((v) => v.key) ?? []),
+  ];
   if (keys.length) await ctx.enqueue('delete-storage-objects', { keys });
   await recordAudit(ctx, actor, {
     action: 'resource.delete',
@@ -448,6 +451,8 @@ export async function getAdminResource(ctx: ServiceContext, id: string) {
           isMissing: row.file.isMissing,
           originalName: row.file.originalName,
           sha256: row.file.sha256,
+          hasPreview: Boolean(row.file.previewKey),
+          ocrApplied: row.file.ocrApplied,
           metadata: row.file.metadata,
         }
       : null,
@@ -469,6 +474,10 @@ export async function getAdminResource(ctx: ServiceContext, id: string) {
     })),
     stats: [...stats],
     duplicates,
+    suggestions: (row.suggestions ?? null) as {
+      rules?: Record<string, unknown>;
+      ai?: Record<string, unknown>;
+    } | null,
   };
 }
 export type AdminResourceDetail = Awaited<ReturnType<typeof getAdminResource>>;

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { NativeSelect } from '@edushare/ui';
+import { Download } from 'lucide-react';
+import { Button, NativeSelect } from '@edushare/ui';
 import { errorMessage } from '@/lib/api';
 import { PageHeader } from '@/components/shell';
 import {
@@ -23,19 +24,26 @@ export default function AnalyticsPage() {
         title="Analytics"
         description="Anonymous, first-party statistics. No visitor accounts or third-party trackers."
         actions={
-          <label className="flex items-center gap-2 text-sm">
-            Period
-            <NativeSelect
-              value={days}
-              onChange={(e) => setDays(Number(e.target.value))}
-              className="w-36"
-            >
-              <option value={7}>Last 7 days</option>
-              <option value={30}>Last 30 days</option>
-              <option value={90}>Last 90 days</option>
-              <option value={365}>Last 12 months</option>
-            </NativeSelect>
-          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" asChild>
+              <a href={`/api/admin/reports/no-results?days=${days}&format=csv`}>
+                <Download className="size-4" aria-hidden="true" /> No-result searches (CSV)
+              </a>
+            </Button>
+            <label className="flex items-center gap-2 text-sm">
+              Period
+              <NativeSelect
+                value={days}
+                onChange={(e) => setDays(Number(e.target.value))}
+                className="w-36"
+              >
+                <option value={7}>Last 7 days</option>
+                <option value={30}>Last 30 days</option>
+                <option value={90}>Last 90 days</option>
+                <option value={365}>Last 12 months</option>
+              </NativeSelect>
+            </label>
+          </div>
         }
       />
       {report.isLoading ? <ReportSkeleton /> : null}

@@ -34,6 +34,7 @@ import { ProcessingBadge, StatusBadge } from '@/components/status-badge';
 import { ErrorState, siteUrl } from '@/components/report';
 import { BarChart } from '@/components/bar-chart';
 import { useSession } from '@/components/providers';
+import { SuggestionsPanel } from '@/components/suggestions-panel';
 
 function toForm(r: AdminResource): ResourceFormValues {
   return {
@@ -284,6 +285,7 @@ export default function EditResourcePage({ params }: { params: Promise<{ id: str
         </form>
 
         <div className="flex flex-col gap-4">
+          <SuggestionsPanel resource={r} canEdit={can('resources.update')} />
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">File</CardTitle>
@@ -307,6 +309,16 @@ export default function EditResourcePage({ params }: { params: Promise<{ id: str
                 <dd>{formatFileSize(r.fileDetail?.sizeBytes)}</dd>
                 <dt className="text-muted-foreground">Pages</dt>
                 <dd>{r.fileDetail?.pageCount ?? '—'}</dd>
+                <dt className="text-muted-foreground">Online preview</dt>
+                <dd>
+                  {r.fileDetail?.previewable
+                    ? processing?.hasPreview
+                      ? 'PDF rendition'
+                      : 'Yes'
+                    : 'No'}
+                </dd>
+                <dt className="text-muted-foreground">Text source</dt>
+                <dd>{processing?.ocrApplied ? 'OCR (scanned)' : 'Document text'}</dd>
                 <dt className="text-muted-foreground">Security scan</dt>
                 <dd>{processing?.scanStatus}</dd>
                 <dt className="text-muted-foreground">Processed</dt>

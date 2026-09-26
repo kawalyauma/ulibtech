@@ -154,6 +154,23 @@ export function publicRoutes(services: Services) {
     return c.json({ resource: result.resource });
   });
 
+  // Lightweight availability check used by the web proxy to answer 410 for removed resources.
+  app.get('/resources/:slug/status', async (c) => {
+    const row = await ctx.db.query.resources.findFirst({
+      where: eq(resources.slug, c.req.param('slug')),
+      columns: { status: true },
+    });
+    const status = !row
+      ? 'missing'
+      : row.status === 'published'
+        ? 'published'
+        : row.status === 'unpublished' || row.status === 'archived'
+          ? 'gone'
+          : 'missing';
+    c.header('Cache-Control', 'public, max-age=30');
+    return c.json({ status });
+  });
+
   app.get('/resources/:slug/related', async (c) => {
     const result = await getPublicResource(ctx, c.req.param('slug'));
     if (result.kind !== 'found') throw AppError.notFound('Resource');

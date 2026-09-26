@@ -57,7 +57,9 @@ test.describe
     await page.getByRole('button', { name: 'Upload resource' }).click();
     await page.waitForURL(/\/resources\/[0-9a-f-]{36}$/);
     adminUrl = page.url();
-    await expect(page.getByText('Processed')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText('Processed', { exact: true }).first()).toBeVisible({
+      timeout: 60_000,
+    });
     await expect(page.getByText('Draft', { exact: true })).toBeVisible();
   });
 
@@ -81,7 +83,7 @@ test.describe
       '/search?class=p6&subject=social-studies&type=past-papers&year=2026&term=term-2',
     );
     await expect(page.getByRole('link', { name: TITLE, exact: true })).toBeVisible();
-    await page.goto('/search?class=p7');
+    await page.goto('/search?class=s6');
     await expect(page.getByText(/No resources match these filters|No results/)).toBeVisible();
   });
 
@@ -96,18 +98,13 @@ test.describe
 
     // SEO essentials
     await expect(page).toHaveTitle(/P6 Social Studies Term 2 Examination 2026/);
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-      'href',
-      `http://localhost:3100/resources/${SLUG}`,
-    );
-    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
-      'content',
-      /Free download/,
-    );
-    await expect(page.locator('meta[property="og:image"]').first()).toHaveAttribute(
-      'content',
-      /opengraph-image/,
-    );
+    // Crawlers see the server-rendered HTML; after client navigation Next may briefly keep
+    // the previous page's streamed metadata in the DOM, so assert on a direct fetch.
+    const html = await (await page.request.get(`/resources/${SLUG}`)).text();
+    const canonicals = [...html.matchAll(/<link rel="canonical" href="([^"]+)"/g)].map((m) => m[1]);
+    expect(canonicals).toEqual([`http://localhost:3100/resources/${SLUG}`]);
+    expect(html).toMatch(/<meta name="description" content="[^"]*Free download/);
+    expect(html).toMatch(/<meta property="og:image" content="[^"]*opengraph-image/);
     const ld = await page.locator('script[type="application/ld+json"]').allTextContents();
     expect(ld.some((j) => j.includes('LearningResource'))).toBe(true);
     expect(ld.some((j) => j.includes('BreadcrumbList'))).toBe(true);

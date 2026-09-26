@@ -30,6 +30,25 @@ export interface AdminResource extends ResourceDetail {
     originalName: string;
     sha256: string;
     metadata: Record<string, unknown>;
+    hasPreview: boolean;
+    ocrApplied: boolean;
+  } | null;
+  suggestions: {
+    rules?: { labels?: Record<string, string>; [field: string]: unknown };
+    ai?: {
+      model: string;
+      generatedAt: string;
+      shortDescription: string;
+      description: string;
+      keywords: string[];
+      ids: Record<string, string | undefined>;
+      classSlug: string | null;
+      subjectSlug: string | null;
+      typeSlug: string | null;
+      year: number | null;
+      termSlug: string | null;
+      topic: string | null;
+    };
   } | null;
   versions: {
     id: string;

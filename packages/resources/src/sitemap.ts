@@ -44,6 +44,9 @@ export async function getSitemapUrls(
       { loc: '/classes', changefreq: 'weekly', priority: 0.8 },
       { loc: '/subjects', changefreq: 'weekly', priority: 0.8 },
       { loc: '/collections', changefreq: 'weekly', priority: 0.6 },
+      { loc: '/trending', changefreq: 'daily', priority: 0.6 },
+      { loc: '/popular', changefreq: 'daily', priority: 0.6 },
+      { loc: '/new', changefreq: 'daily', priority: 0.6 },
       { loc: '/about', changefreq: 'yearly', priority: 0.3 },
     ];
   }

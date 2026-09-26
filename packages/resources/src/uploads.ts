@@ -1,8 +1,8 @@
 import { eq } from '@edushare/database';
 import { resourceFiles } from '@edushare/database/schema';
-import { detectFileType, readHead, UnsupportedFileError } from '@edushare/documents';
+import { detectFileType, UnsupportedFileError } from '@edushare/documents';
 import { AppError } from '@edushare/shared';
-import { buildKey } from '@edushare/storage';
+import { buildKey, readObjectHead } from '@edushare/storage';
 import type { Actor, ServiceContext } from './context';
 
 export interface TemporaryUpload {
@@ -18,15 +18,13 @@ export interface TemporaryUpload {
  * creates a `resource_files` row. The caller links it to a resource.
  */
 export async function ingestUpload(ctx: ServiceContext, actor: Actor, upload: TemporaryUpload) {
-  if (!ctx.storage.localPath)
-    throw new Error('Storage provider must expose local paths for validation');
   if (upload.sizeBytes <= 0) {
     await ctx.storage.delete(upload.tempKey);
     throw new AppError('BAD_REQUEST', 'The uploaded file is empty.');
   }
   let detected;
   try {
-    const head = await readHead(ctx.storage.localPath(upload.tempKey));
+    const head = await readObjectHead(ctx.storage, upload.tempKey);
     detected = await detectFileType(head, upload.originalName);
   } catch (err) {
     await ctx.storage.delete(upload.tempKey);

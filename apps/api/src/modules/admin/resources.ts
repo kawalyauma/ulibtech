@@ -15,6 +15,12 @@ import {
   setResourceStatus,
   updateResource,
   afterContentChange,
+  aiEnabled,
+  enrichResource,
+  IMPORT_TEMPLATE_CSV,
+  parseImportSheet,
+  resolveImportRows,
+  suggestClassification,
   type Actor,
 } from '@edushare/resources';
 import {
@@ -129,6 +135,130 @@ export function adminResourceRoutes(services: Services) {
     return c.json({ results }, 201);
   });
 
+  // ---------------------------------------------------------------- spreadsheet import
+  app.get('/import/template', requirePermission('resources.create'), (c) => {
+    c.header('Content-Type', 'text/csv; charset=utf-8');
+    c.header('Content-Disposition', 'attachment; filename="edushare-import-template.csv"');
+    return c.body(IMPORT_TEMPLATE_CSV);
+  });
+
+  const readSheet = async (c: AppContext, maxFiles: number) => {
+    const { fields, files } = await parseMultipart(c, ctx.storage, {
+      maxFileBytes: maxBytes,
+      maxFiles,
+    });
+    const sheet = files.find((f) => f.field === 'sheet');
+    if (!sheet) {
+      await Promise.all(files.map((f) => ctx.storage.delete(f.tempKey).catch(() => undefined)));
+      throw AppError.badRequest('Attach the metadata spreadsheet (CSV or XLSX) as "sheet".');
+    }
+    try {
+      const rows = await parseImportSheet(
+        await ctx.storage.read(sheet.tempKey),
+        sheet.originalName,
+      );
+      return { fields, files: files.filter((f) => f !== sheet), rows };
+    } finally {
+      await ctx.storage.delete(sheet.tempKey).catch(() => undefined);
+    }
+  };
+
+  app.post('/import/validate', requirePermission('resources.create'), async (c) => {
+    const { rows } = await readSheet(c, 1);
+    const resolved = await resolveImportRows(ctx, rows);
+    return c.json({
+      rows: resolved,
+      valid: resolved.filter((r) => !r.errors.length).length,
+      invalid: resolved.filter((r) => r.errors.length).length,
+    });
+  });
+
+  app.post('/import', requirePermission('resources.create'), async (c) => {
+    checkLength(c, 100);
+    const { files, rows } = await readSheet(c, 101);
+    const resolved = await resolveImportRows(ctx, rows);
+    const byName = new Map(files.map((f) => [f.originalName.toLowerCase(), f]));
+    const used = new Set<string>();
+    const canPublish = c.get('admin')!.permissions.includes('resources.publish');
+    const results: {
+      row: number;
+      ok: boolean;
+      action: string;
+      id?: string;
+      title?: string;
+      error?: string;
+    }[] = [];
+    try {
+      for (const r of resolved) {
+        if (r.errors.length) {
+          results.push({ row: r.row, ok: false, action: 'skipped', error: r.errors.join('; ') });
+          continue;
+        }
+        try {
+          const status =
+            r.metadata.status === 'published' && !canPublish ? 'review' : r.metadata.status;
+          if (r.existingId) {
+            const { status: _s, ...meta } = r.metadata;
+            const updated = await updateResource(ctx, actorOf(c), r.existingId, meta);
+            results.push({
+              row: r.row,
+              ok: true,
+              action: 'updated',
+              id: updated.id,
+              title: updated.title,
+            });
+            continue;
+          }
+          const file = byName.get((r.fileName ?? '').toLowerCase());
+          if (!file) {
+            results.push({
+              row: r.row,
+              ok: false,
+              action: 'skipped',
+              error: `File "${r.fileName}" was not included in the upload`,
+            });
+            continue;
+          }
+          used.add(file.tempKey);
+          const input = parse(resourceMetadataSchema, {
+            ...r.metadata,
+            title: r.metadata.title ?? titleFromFileName(file.originalName),
+            status,
+          });
+          const created = await createResourceFromUpload(ctx, actorOf(c), file, input);
+          results.push({
+            row: r.row,
+            ok: true,
+            action: 'created',
+            id: created.resource.id,
+            title: created.resource.title,
+          });
+        } catch (err) {
+          results.push({
+            row: r.row,
+            ok: false,
+            action: 'failed',
+            error: err instanceof AppError ? err.message : 'Import failed',
+          });
+        }
+      }
+    } finally {
+      for (const f of files)
+        if (!used.has(f.tempKey)) await ctx.storage.delete(f.tempKey).catch(() => undefined);
+    }
+    const unmatched = files.filter((f) => !used.has(f.tempKey)).map((f) => f.originalName);
+    return c.json({ results, unmatchedFiles: unmatched }, 201);
+  });
+
+  // Classification suggestions for the upload form (from title and file name).
+  app.post('/classify', requirePermission('resources.create'), async (c) => {
+    const body = parse(
+      z.object({ title: z.string().max(200).optional(), fileName: z.string().max(255).optional() }),
+      await jsonBody(c),
+    );
+    return c.json(await suggestClassification(ctx, body));
+  });
+
   app.post('/duplicates', requirePermission('resources.read'), async (c) => {
     const body = parse(
       z.object({
@@ -216,6 +346,69 @@ export function adminResourceRoutes(services: Services) {
     return c.json({ ok: true });
   });
 
+  app.post('/:id/enrich', requirePermission('resources.update'), async (c) => {
+    if (!aiEnabled())
+      throw AppError.badRequest(
+        'AI suggestions are not enabled on this server (set AI_ENRICH_ENABLED and an Anthropic API key).',
+      );
+    const suggestion = await enrichResource(ctx, c.req.param('id'));
+    if (!suggestion) throw AppError.badRequest('Not enough extracted text to summarise this file.');
+    return c.json(await getAdminResource(ctx, c.req.param('id')));
+  });
+
+  // Apply rule-based or AI suggestions field by field (admin stays in control).
+  app.post('/:id/suggestions/apply', requirePermission('resources.update'), async (c) => {
+    const body = parse(
+      z.object({
+        source: z.enum(['rules', 'ai']),
+        fields: z
+          .array(
+            z.enum([
+              'classId',
+              'subjectId',
+              'resourceTypeId',
+              'academicYearId',
+              'termId',
+              'topicId',
+              'shortDescription',
+              'description',
+              'keywords',
+            ]),
+          )
+          .min(1),
+      }),
+      await jsonBody(c),
+    );
+    const id = c.req.param('id');
+    const row = await ctx.db.query.resources.findFirst({
+      where: eq(resources.id, id),
+      columns: { suggestions: true, keywords: true },
+    });
+    if (!row) throw AppError.notFound('Resource');
+    const sugg = (row.suggestions ?? {})[body.source] as
+      | {
+          ids?: Record<string, string>;
+          shortDescription?: string;
+          description?: string;
+          keywords?: string[];
+          [k: string]: unknown;
+        }
+      | undefined;
+    if (!sugg)
+      throw AppError.badRequest('There are no suggestions of that kind for this resource.');
+    const ids = body.source === 'ai' ? (sugg.ids ?? {}) : (sugg as Record<string, string>);
+    const update: Record<string, unknown> = {};
+    for (const f of body.fields) {
+      if (f === 'shortDescription' || f === 'description') {
+        if (sugg[f]) update[f] = sugg[f];
+      } else if (f === 'keywords') {
+        if (sugg.keywords?.length)
+          update.keywords = [...new Set([...row.keywords, ...sugg.keywords])];
+      } else if (ids[f]) update[f] = ids[f];
+    }
+    return c.json(await updateResource(ctx, actorOf(c), id, update));
+  });
+
   // Custom thumbnail (replaces the generated one).
   app.post('/:id/thumbnail', requirePermission('resources.update'), async (c) => {
     checkLength(c);
@@ -230,9 +423,9 @@ export function adminResourceRoutes(services: Services) {
       maxFiles: 1,
     });
     const file = files[0];
-    if (!file || !ctx.storage.localPath) throw AppError.badRequest('Choose an image.');
+    if (!file) throw AppError.badRequest('Choose an image.');
     try {
-      const path = ctx.storage.localPath(file.tempKey);
+      const path = await ctx.storage.read(file.tempKey);
       const meta = await sharp(path)
         .metadata()
         .catch(() => null);

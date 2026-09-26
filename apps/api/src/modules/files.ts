@@ -33,6 +33,7 @@ async function loadFile(services: Services, slug: string) {
         columns: {
           id: true,
           storageKey: true,
+          previewKey: true,
           mimeType: true,
           extension: true,
           kind: true,
@@ -62,7 +63,7 @@ async function sendFile(
   services: Services,
   key: string,
   headers: Record<string, string>,
-  opts: { head?: boolean } = {},
+  opts: { head?: boolean; presign?: { fileName: string } } = {},
 ): Promise<Response> {
   const storage = services.ctx.storage;
   for (const [k, v] of Object.entries(headers)) c.header(k, v);
@@ -70,6 +71,16 @@ async function sendFile(
   c.header('X-Content-Type-Options', 'nosniff');
   c.header('Content-Security-Policy', "default-src 'none'; sandbox");
 
+  // Object storage: hand the browser a short-lived signed URL instead of proxying bytes.
+  if (opts.presign && storage.presignedUrl && process.env.S3_PRESIGNED_DOWNLOADS === 'true') {
+    const url = await storage.presignedUrl(key, {
+      fileName: opts.presign.fileName,
+      contentType: headers['Content-Type'],
+      expiresIn: 300,
+    });
+    c.header('Cache-Control', 'private, no-store');
+    return c.redirect(url, 302);
+  }
   const accel = storage.accelRedirectPath?.(key) ?? null;
   if (accel) {
     // Nginx serves the bytes (with range support) from an internal location.
@@ -151,7 +162,7 @@ export function fileRoutes(services: Services) {
           'Cache-Control': 'private, no-store',
           'X-Robots-Tag': 'noindex',
         },
-        { head },
+        { head, presign: head ? undefined : { fileName: name } },
       );
     } catch (err) {
       if (err instanceof StorageNotFoundError) {
@@ -171,12 +182,17 @@ export function fileRoutes(services: Services) {
   app.get('/api/files/:slug/preview', limiter(services.redis, 'preview', 600, 600), async (c) => {
     const row = await loadFile(services, c.req.param('slug'));
     if (!row || row.file.isMissing) throw AppError.notFound('File');
-    if (!isPreviewable(row.file.kind as AllowedFileKind))
+    // Office documents are previewed through their PDF rendition (made by LibreOffice).
+    const native = isPreviewable(row.file.kind as AllowedFileKind);
+    if (!native && !row.file.previewKey)
       throw new AppError('BAD_REQUEST', 'Preview is not available for this file type');
+    const key = native ? row.file.storageKey : row.file.previewKey!;
+    const mime = native ? row.file.mimeType : 'application/pdf';
+    const ext = native ? row.file.extension : 'pdf';
     try {
-      return await sendFile(c, services, row.file.storageKey, {
-        'Content-Type': row.file.mimeType,
-        'Content-Disposition': contentDisposition('inline', `${row.title}.${row.file.extension}`),
+      return await sendFile(c, services, key, {
+        'Content-Type': mime,
+        'Content-Disposition': contentDisposition('inline', `${row.title}.${ext}`),
         'Cache-Control': 'public, max-age=3600',
         'X-Robots-Tag': 'noindex',
       });

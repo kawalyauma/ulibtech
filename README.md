@@ -59,7 +59,7 @@ Sign in at <http://localhost:3001> and upload a PDF. `node scripts/make-sample-p
 | `pnpm dev` | Run all apps in watch mode |
 | `pnpm build` | Build all apps |
 | `pnpm lint` / `pnpm format` / `pnpm typecheck` | ESLint, Prettier, TypeScript strict |
-| `pnpm test` | Vitest unit and integration tests (needs Postgres and Redis; uses the `edushare_test` DB and Redis DB 15) |
+| `pnpm test` | Vitest unit and integration tests (needs Postgres and Redis; uses the `edushare_test` DB and Redis DB 15). Set `MEILI_TEST_HOST`/`MEILI_TEST_KEY` or `S3_TEST_ENDPOINT` to also run the Meilisearch and S3 suites. |
 | `pnpm test:e2e` | Playwright: starts the full stack on ports 3100/3101/4100 against `edushare_test` |
 | `pnpm db:generate` | Generate a migration after changing the Drizzle schema |
 
@@ -103,6 +103,28 @@ Visitors are identified only by a **daily-rotating salted hash**. Raw IP address
 - Rate limits in both Redis and Nginx. Downloads are keyed by IP and user agent, so a shared school network is not blocked.
 - Zod validation everywhere, parameterised SQL, strict upload validation and limits, path-traversal-safe storage keys, CSP and security headers, and generic error messages (details are only logged).
 
+## Optional features
+
+Everything below is off or auto-detected by default. Turn features on with the environment variables listed in `.env.example`.
+
+| Feature | How it works | Enable |
+| --- | --- | --- |
+| **Office previews** | The worker converts Word, PowerPoint, Excel and ODT files to a PDF rendition with LibreOffice. The rendition powers the online preview, the first-page thumbnail and the page count, and gives searchable text for legacy `.doc`/`.ppt`/`.xls`. Visitors still download the original file. | Auto-detected (installed in the worker image) |
+| **Auto-classification** | Class, subject, type, year, term and topic are inferred from the title, the file name and the document header ("PRIMARY SIX END OF TERM II EXAMINATION 2026"). Only empty fields are filled, and it is recorded in the audit log. The upload form pre-fills suggestions as you type. | Always on |
+| **Spreadsheet import** | *Uploads → Spreadsheet import*: download the template, fill `file_name, title, class, subject, type, year, term, tags…` (friendly values like "P6", "SST" and "Past Paper" are accepted), validate, then upload the files. Rows with a `slug` and no file update existing resources. | Always on |
+| **Starter topics** | About 230 syllabus topics across the main subjects are seeded, for topic landing pages and classification. | `pnpm db:seed` |
+| **Trending pages** | `/trending` (today), `/trending/week`, `/popular` (most downloaded) and `/new`, all filterable by class, subject and type. Class pages link to "Most downloaded P6" and similar. | Always on |
+| **No-result report** | A weekly digest of searches that found nothing (worker job, Monday 06:00) plus a CSV export in *Analytics*. | Always on |
+| **SEO suggestions** | *SEO* lists the landing pages most worth custom text, ranked by search demand and content. | Always on |
+| **OCR** | Scanned PDFs and images with no text layer are OCR'd with Tesseract, so their contents become searchable. | `OCR_ENABLED=true` |
+| **AI summaries** | Claude (`claude-opus-5`, low effort, structured output, refusal fallbacks enabled) proposes a short description, a summary, keywords and a classification. Admins apply suggestions field by field; nothing is published automatically. | `AI_ENRICH_ENABLED=true` + `ANTHROPIC_API_KEY` |
+| **Meilisearch** | A drop-in `SearchProvider` with typo tolerance, synonyms, facets and highlighting. Postgres vectors stay up to date, so you can switch back at any time. | `docker compose --profile meilisearch up -d`, `SEARCH_PROVIDER=meilisearch`, then *Settings → Rebuild search index* |
+| **S3 / MinIO / R2** | A drop-in `StorageProvider` using multipart uploads, range reads and signed download URLs. Processing works on temporary local copies. | `STORAGE_DRIVER=s3` + `S3_*` (`--profile minio` for self-hosted MinIO) |
+| **CDN** | Serve thumbnails from a CDN or public bucket, and Next.js assets from a CDN. CSP is widened automatically. | `MEDIA_BASE_URL`, `ASSET_PREFIX` |
+| **HTTP 410** | Unpublished and archived resources answer `410 Gone`, so search engines drop them quickly. Renamed slugs answer 301. | Always on |
+
+The admin *Settings* page shows which optional features are active on the server.
+
 ## Production deployment (Ubuntu/Debian + Docker Compose)
 
 ```bash
@@ -116,10 +138,10 @@ docker compose up -d                                   # runs migrations + seed 
 docker compose run --rm api node dist/scripts/create-admin.js you@school.ug "Your Name"
 ```
 
-- **Updates**: `scripts/deploy.sh`. **Backups**: `scripts/backup.sh` (pg_dump plus a storage archive, 14-day retention; add it to cron).
+- **Updates**: `scripts/deploy.sh`. **Backups**: `scripts/backup.sh` (pg_dump plus a storage archive, 14-day retention; add it to cron). **Restore**: `scripts/restore.sh <db.dump> [storage.tar.gz]`. Practise a restore on a staging server regularly.
 - **Malware scanning**: uncomment the `clamav` service and set `CLAMAV_HOST=clamav` on the worker.
 - **Behind a TLS-intercepting proxy**: pass `--secret id=extra_ca,src=ca.crt` to `docker build`.
 - Only Nginx is exposed. PostgreSQL, Redis and the apps stay on the internal Docker network.
 
 ## Roadmap (architecture already prepared)
-Meilisearch/OpenSearch providers · MinIO/S3/R2 storage providers · OCR for scanned PDFs · CSV/Excel metadata import · teacher accounts and moderated uploads · ratings and comments · AI summaries, recommendations and auto-classification.
+OpenSearch provider · teacher accounts and moderated uploads · ratings and comments · AI recommendations · curriculum matching.

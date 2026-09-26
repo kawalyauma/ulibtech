@@ -46,7 +46,8 @@ export function expandNumberWords(normalized: string): string {
         return a === 'primary' ? `p${d}` : a === 'senior' ? `s${d}` : `term ${d}`;
       },
     )
-    .replace(/\b(first|second|third)\s+term\b/g, (_, n: string) => `term ${NUMBER_WORDS[n]}`);
+    .replace(/\b(first|second|third)\s+term\b/g, (_, n: string) => `term ${NUMBER_WORDS[n]}`)
+    .replace(/\bterm\s+(iii|ii|i)\b/g, (_, r: string) => `term ${r.length}`);
 }
 
 /** Damerau–Levenshtein (optimal string alignment) distance with an early-exit bound. */

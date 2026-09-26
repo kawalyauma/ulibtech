@@ -43,6 +43,20 @@
       "when": 1790421363681,
       "tag": "0005_publish_when_ready",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790459474068,
+      "tag": "0006_file_previews_ocr",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790459532692,
+      "tag": "0007_resource_suggestions",
+      "breakpoints": true
     }
   ]
 }

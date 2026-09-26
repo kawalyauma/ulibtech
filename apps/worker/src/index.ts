@@ -17,7 +17,7 @@ const ctx: ServiceContext = {
   search: createSearchProvider(db, cache),
   cache,
   enqueue,
-  mediaBaseUrl: '/media',
+  mediaBaseUrl: (process.env.MEDIA_BASE_URL || '/media').replace(/\/$/, ''),
 };
 const handlers = createHandlers(ctx);
 
@@ -87,6 +87,12 @@ async function schedule() {
     'cleanup-temporary',
     { every: 6 * 3_600_000 },
     { name: 'cleanup-temporary', data: { olderThanHours: 24 } },
+  );
+  // Monday 06:00: digest of searches that found nothing (what to upload next).
+  await maintenance.upsertJobScheduler(
+    'no-result-report',
+    { pattern: '0 6 * * 1' },
+    { name: 'no-result-report', data: { days: 7 } },
   );
   await maintenance.upsertJobScheduler(
     'refresh-sitemap',

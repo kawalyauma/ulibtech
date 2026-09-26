@@ -2,12 +2,20 @@ import type { NextConfig } from 'next';
 
 const apiUrl = (process.env.API_INTERNAL_URL ?? 'http://localhost:4000').replace(/\/$/, '');
 
+// Optional CDN / object-storage origin for thumbnails (MEDIA_BASE_URL) and static assets (ASSET_PREFIX).
+const mediaOrigin = /^https?:\/\//.test(process.env.MEDIA_BASE_URL ?? '')
+  ? new URL(process.env.MEDIA_BASE_URL!).origin
+  : '';
+const assetOrigin = /^https?:\/\//.test(process.env.ASSET_PREFIX ?? '')
+  ? new URL(process.env.ASSET_PREFIX!).origin
+  : '';
+
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'" +
+  `script-src 'self' 'unsafe-inline' ${assetOrigin}`.trim() +
     (process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''),
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  `style-src 'self' 'unsafe-inline' ${assetOrigin}`.trim(),
+  `img-src 'self' data: blob: ${mediaOrigin}`.trim(),
   "font-src 'self' data:",
   "connect-src 'self'",
   "worker-src 'self' blob:",
@@ -32,6 +40,7 @@ const securityHeaders = [
 const config: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
+  assetPrefix: process.env.ASSET_PREFIX || undefined,
   distDir: process.env.NEXT_DIST_DIR ?? '.next',
   agentRules: false,
   reactStrictMode: true,

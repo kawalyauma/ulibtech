@@ -6,6 +6,7 @@ import { useState } from 'react';
 import {
   BarChart3,
   BookOpen,
+  FileSpreadsheet,
   FileStack,
   FolderTree,
   Home,
@@ -40,6 +41,12 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { label: 'Resources', href: '/resources', icon: FileStack, perm: 'resources.read' },
       { label: 'Upload', href: '/resources/new', icon: Upload, perm: 'resources.create' },
       { label: 'Bulk upload', href: '/uploads', icon: Upload, perm: 'resources.create' },
+      {
+        label: 'Spreadsheet import',
+        href: '/uploads/import',
+        icon: FileSpreadsheet,
+        perm: 'resources.create',
+      },
       { label: 'Collections', href: '/collections', icon: Library, perm: 'resources.read' },
     ],
   },
@@ -98,12 +105,14 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
           {g.items
             .filter((i) => !i.perm || can(i.perm))
             .map((i) => {
+              // A more specific menu item (e.g. /uploads/import) wins over its parent.
+              const exactElsewhere = GROUPS.some((grp) =>
+                grp.items.some((x) => x.href !== i.href && x.href === pathname),
+              );
               const active =
                 i.href === '/'
                   ? pathname === '/'
-                  : pathname === i.href ||
-                    (pathname.startsWith(`${i.href}/`) && i.href !== '/resources') ||
-                    (i.href === '/resources' && /^\/resources\/(?!new)/.test(pathname));
+                  : pathname === i.href || (!exactElsewhere && pathname.startsWith(`${i.href}/`));
               return (
                 <Link
                   key={i.href}

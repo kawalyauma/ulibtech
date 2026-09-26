@@ -21,6 +21,20 @@ x-app-env: &app-env
   STORAGE_ROOT: /opt/edushare/storage
   STORAGE_ACCEL_REDIRECT: 'true'
   MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-100}
+  SEARCH_PROVIDER: ${SEARCH_PROVIDER:-postgres}
+  MEILI_HOST: ${MEILI_HOST:-http://meilisearch:7700}
+  MEILI_API_KEY: ${MEILI_MASTER_KEY:-}
+  STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+  MEDIA_BASE_URL: ${MEDIA_BASE_URL:-/media}
+  OCR_ENABLED: ${OCR_ENABLED:-false}
+  AI_ENRICH_ENABLED: ${AI_ENRICH_ENABLED:-false}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-120}
   SESSION_ABSOLUTE_HOURS: ${SESSION_ABSOLUTE_HOURS:-12}
 
@@ -151,6 +165,31 @@ services:
       - nginxcache:/var/cache/nginx
     depends_on: [web, admin, api]
 
+  # Optional dedicated search engine: `docker compose --profile meilisearch up -d`,
+  # then set SEARCH_PROVIDER=meilisearch and rebuild the index (Settings → Maintenance).
+  meilisearch:
+    image: getmeili/meilisearch:v1.54
+    profiles: [meilisearch]
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-}
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: 'true'
+    volumes:
+      - meilidata:/meili_data
+
+  # Optional S3-compatible object storage: `docker compose --profile minio up -d`
+  minio:
+    image: minio/minio:latest
+    profiles: [minio]
+    restart: unless-stopped
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-edushare}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-change-me-minio}
+    volumes:
+      - miniodata:/data
+
   # Optional malware scanning: uncomment and set CLAMAV_HOST on the worker.
   # clamav:
   #   image: clamav/clamav:stable
@@ -160,3 +199,5 @@ volumes:
   pgdata:
   redisdata:
   nginxcache:
+  meilidata:
+  miniodata:

@@ -11,6 +11,7 @@ export const PRIMARY_NAV = [
   { label: 'Notes', href: '/notes' },
   { label: 'Schemes', href: '/schemes-of-work' },
   { label: 'Lesson Plans', href: '/lesson-plans' },
+  { label: 'Trending', href: '/trending' },
   { label: 'More Resources', href: '/search' },
 ];
 

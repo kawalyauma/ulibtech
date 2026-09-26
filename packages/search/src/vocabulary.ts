@@ -83,6 +83,14 @@ export function parseQuery(
     for (let n = Math.min(MAX_NGRAM, tokens.length - i); n >= 1; n--) {
       const phrase = tokens.slice(i, i + n).join(' ');
       const hit = phraseIndex.get(phrase);
+      // "end of term 2": let "term 2" win over the type alias "end of term".
+      if (
+        hit &&
+        hit.kind !== 'term' &&
+        tokens[i + n - 1] === 'term' &&
+        /^[1-3]$/.test(tokens[i + n] ?? '')
+      )
+        continue;
       if (hit && !entities[hit.kind]) {
         entities[hit.kind] = hit.entry;
         entityTokens.push(...tokens.slice(i, i + n));

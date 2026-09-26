@@ -23,6 +23,10 @@ export interface JobPayloads {
   'cleanup-temporary': { olderThanHours?: number };
   'delete-storage-objects': { keys: string[] };
   'refresh-sitemap': Record<string, never>;
+  /** Optional Claude-powered summary and classification suggestions. */
+  'ai-enrich': { resourceId: string };
+  /** Weekly digest of searches that returned no results. */
+  'no-result-report': { days?: number };
 }
 export type JobName = keyof JobPayloads;
 
@@ -37,6 +41,8 @@ export const JOB_QUEUE: Record<JobName, QueueName> = {
   'cleanup-temporary': QUEUES.maintenance,
   'delete-storage-objects': QUEUES.maintenance,
   'refresh-sitemap': QUEUES.maintenance,
+  'ai-enrich': QUEUES.processing,
+  'no-result-report': QUEUES.maintenance,
 };
 
 const defaultJobOptions: JobsOptions = {

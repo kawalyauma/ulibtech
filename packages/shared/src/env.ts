@@ -21,11 +21,13 @@ const serverEnvSchema = z.object({
   SESSION_ABSOLUTE_HOURS: z.coerce.number().int().min(1).default(12),
   ANALYTICS_SALT: z.string().min(8).default('dev-analytics-salt'),
   REVALIDATE_SECRET: z.string().min(8).default('dev-revalidate-secret'),
-  STORAGE_DRIVER: z.enum(['local']).default('local'),
+  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_ROOT: z.string().default('./storage'),
   STORAGE_ACCEL_REDIRECT: bool,
   MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(2048).default(100),
-  SEARCH_PROVIDER: z.enum(['postgres']).default('postgres'),
+  SEARCH_PROVIDER: z.enum(['postgres', 'meilisearch']).default('postgres'),
+  MEILI_HOST: z.url().optional(),
+  MEILI_API_KEY: z.string().optional(),
   TRUST_PROXY: bool,
 });
 

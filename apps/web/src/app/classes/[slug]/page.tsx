@@ -29,8 +29,14 @@ export default async function ClassPage({ params, searchParams }: Props) {
   ]);
   if (!data) notFound();
   const subjects = cls?.subjects ?? [];
+  const name = cls?.class.shortName ?? cls?.class.name ?? slug.toUpperCase();
   const extra = subjects.length ? (
     <section aria-label="Subjects" className="mb-6 flex flex-col gap-2">
+      <div className="mb-2 flex flex-wrap gap-2 text-sm">
+        <ChipLink href={`/popular?class=${slug}`}>Most downloaded {name}</ChipLink>
+        <ChipLink href={`/trending/week?class=${slug}`}>Trending in {name}</ChipLink>
+        <ChipLink href={`/new?class=${slug}`}>New in {name}</ChipLink>
+      </div>
       <h2 className="text-muted-foreground text-sm font-semibold">Subjects</h2>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:flex-wrap">
         {subjects.map((s) => (

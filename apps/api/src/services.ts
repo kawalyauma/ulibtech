@@ -26,7 +26,8 @@ export function createServices(overrides: Partial<Pick<ServiceContext, 'enqueue'
     search: createSearchProvider(db, cache),
     cache,
     enqueue: overrides.enqueue ?? enqueue,
-    mediaBaseUrl: '/media',
+    // Set MEDIA_BASE_URL to a CDN or public-bucket URL to serve thumbnails from there.
+    mediaBaseUrl: (process.env.MEDIA_BASE_URL || '/media').replace(/\/$/, ''),
   };
   return { env, db, redis, cache, ctx };
 }

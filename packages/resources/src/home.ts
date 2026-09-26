@@ -61,21 +61,21 @@ export async function getHome(ctx: ServiceContext): Promise<HomeData> {
         sections.push({
           key: s.key,
           title: s.title ?? 'Recently added',
-          href: '/search?sort=newest',
+          href: '/new',
           items: await listCards(ctx, { order: 'newest', limit: 8 }),
         });
       } else if (s.key === 'popular') {
         sections.push({
           key: s.key,
           title: s.title ?? 'Popular downloads',
-          href: '/search?sort=downloads',
+          href: '/popular',
           items: await listCards(ctx, { order: 'downloads', limit: 8 }),
         });
       } else if (s.key === 'trending') {
         sections.push({
           key: s.key,
           title: s.title ?? 'Trending this week',
-          href: '/search?sort=trending_week',
+          href: '/trending/week',
           items: await listCards(ctx, { order: 'trending_week', limit: 8 }),
         });
       } else if (s.key in TYPE_SECTIONS) {

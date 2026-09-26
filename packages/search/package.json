@@ -12,6 +12,7 @@
   "dependencies": {
     "@edushare/cache": "workspace:*",
     "@edushare/database": "workspace:*",
-    "@edushare/shared": "workspace:*"
+    "@edushare/shared": "workspace:*",
+    "meilisearch": "^0.62.0"
   }
 }

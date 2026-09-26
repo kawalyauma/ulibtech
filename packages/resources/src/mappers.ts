@@ -153,7 +153,8 @@ export function mapDetail(r: ResourceDetailRow, mediaBaseUrl: string): ResourceD
           extension: r.file.extension,
           sizeBytes: r.file.sizeBytes,
           pageCount: r.file.pageCount,
-          previewable: isPreviewable(r.file.kind as AllowedFileKind),
+          previewable:
+            isPreviewable(r.file.kind as AllowedFileKind) ?? (r.file.previewKey ? 'pdf' : null),
         }
       : null,
     seoTitle: r.seoTitle,
