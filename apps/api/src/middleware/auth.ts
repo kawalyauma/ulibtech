@@ -29,12 +29,15 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  */
 export function csrfProtection(services: Services): MiddlewareHandler<AppEnv> {
   const allowed = new Set(
-    [...services.env.ADMIN_ALLOWED_ORIGINS.split(','), services.env.ADMIN_SITE_URL].map((o) => o.trim().replace(/\/$/, '')).filter(Boolean),
+    [...services.env.ADMIN_ALLOWED_ORIGINS.split(','), services.env.ADMIN_SITE_URL]
+      .map((o) => o.trim().replace(/\/$/, ''))
+      .filter(Boolean),
   );
   return async (c, next) => {
     if (SAFE_METHODS.has(c.req.method)) return next();
     const origin = c.req.header('origin');
-    if (origin && !allowed.has(origin.replace(/\/$/, ''))) throw AppError.forbidden('Request origin not allowed');
+    if (origin && !allowed.has(origin.replace(/\/$/, '')))
+      throw AppError.forbidden('Request origin not allowed');
     const session = c.get('admin');
     const token = c.req.header(CSRF_HEADER);
     if (!session || !token || !safeEqual(token, session.csrfToken)) {

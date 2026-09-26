@@ -4,7 +4,10 @@ export { Redis };
 
 const globalForRedis = globalThis as unknown as { __edushareRedis?: Redis };
 
-export function createRedis(url = process.env.REDIS_URL ?? 'redis://localhost:6379', opts: { forQueue?: boolean } = {}): Redis {
+export function createRedis(
+  url = process.env.REDIS_URL ?? 'redis://localhost:6379',
+  opts: { forQueue?: boolean } = {},
+): Redis {
   return new Redis(url, {
     // BullMQ workers require maxRetriesPerRequest=null for blocking commands.
     maxRetriesPerRequest: opts.forQueue ? null : 2,
@@ -104,7 +107,11 @@ export async function rateLimit(
   const windowId = Math.floor(Date.now() / 1000 / windowSeconds);
   const key = `${PREFIX}rl:${bucket}:${identifier}:${windowId}`;
   try {
-    const results = await redis.multi().incr(key).expire(key, windowSeconds + 1).exec();
+    const results = await redis
+      .multi()
+      .incr(key)
+      .expire(key, windowSeconds + 1)
+      .exec();
     const count = Number(results?.[0]?.[1] ?? 0);
     const resetSeconds = windowSeconds - (Math.floor(Date.now() / 1000) % windowSeconds);
     return { allowed: count <= limit, remaining: Math.max(0, limit - count), resetSeconds, limit };
@@ -124,21 +131,35 @@ export async function firstSeen(redis: Redis, key: string, ttlSeconds: number): 
 }
 
 /** Popularity counters in sorted sets, bucketed by UTC day. */
-export async function bumpPopularity(redis: Redis, metric: 'view' | 'download' | 'share', resourceId: string): Promise<void> {
+export async function bumpPopularity(
+  redis: Redis,
+  metric: 'view' | 'download' | 'share',
+  resourceId: string,
+): Promise<void> {
   const day = new Date().toISOString().slice(0, 10);
   const key = `${PREFIX}pop:${metric}:${day}`;
   try {
-    await redis.multi().zincrby(key, 1, resourceId).expire(key, 60 * 60 * 24 * 10).exec();
+    await redis
+      .multi()
+      .zincrby(key, 1, resourceId)
+      .expire(key, 60 * 60 * 24 * 10)
+      .exec();
   } catch {
     // ignore
   }
 }
 
-export async function getPopularity(redis: Redis, metric: 'view' | 'download' | 'share', day: string, limit = 50): Promise<{ id: string; score: number }[]> {
+export async function getPopularity(
+  redis: Redis,
+  metric: 'view' | 'download' | 'share',
+  day: string,
+  limit = 50,
+): Promise<{ id: string; score: number }[]> {
   try {
     const raw = await redis.zrevrange(`${PREFIX}pop:${metric}:${day}`, 0, limit - 1, 'WITHSCORES');
     const out: { id: string; score: number }[] = [];
-    for (let i = 0; i < raw.length; i += 2) out.push({ id: raw[i] ?? '', score: Number(raw[i + 1]) });
+    for (let i = 0; i < raw.length; i += 2)
+      out.push({ id: raw[i] ?? '', score: Number(raw[i + 1]) });
     return out;
   } catch {
     return [];

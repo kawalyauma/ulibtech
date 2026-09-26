@@ -22,7 +22,9 @@ beforeAll(async () => {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   for (let i = 0; i < 2; i++) {
-    doc.addPage([595, 842]).drawText(`Photosynthesis in green plants page ${i + 1}`, { x: 50, y: 780, size: 16, font });
+    doc
+      .addPage([595, 842])
+      .drawText(`Photosynthesis in green plants page ${i + 1}`, { x: 50, y: 780, size: 16, font });
   }
   doc.setTitle('P6 Science Notes');
   pdfPath = path.join(dir, 'notes.pdf');
@@ -44,12 +46,17 @@ describe('detectFileType', () => {
   });
 
   it('rejects executables disguised as PDF', async () => {
-    const elf = Buffer.concat([Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0]), Buffer.alloc(200)]);
+    const elf = Buffer.concat([
+      Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0]),
+      Buffer.alloc(200),
+    ]);
     await expect(detectFileType(elf, 'exam.pdf')).rejects.toBeInstanceOf(UnsupportedFileError);
   });
 
   it('rejects unknown binary content with txt extension', async () => {
-    await expect(detectFileType(Buffer.from([0, 1, 2, 3, 0, 0]), 'x.txt')).rejects.toBeInstanceOf(UnsupportedFileError);
+    await expect(detectFileType(Buffer.from([0, 1, 2, 3, 0, 0]), 'x.txt')).rejects.toBeInstanceOf(
+      UnsupportedFileError,
+    );
   });
 
   it('accepts utf-8 text files', async () => {
@@ -82,14 +89,28 @@ describe('thumbnails', () => {
   it('renders a PDF first page and creates responsive variants', async () => {
     const src = await renderSourceImage(pdfPath, 'pdf', { title: 'x' });
     const variants = await createThumbnailVariants(src);
-    expect(variants.map((v) => `${v.width}.${v.format}`)).toEqual(['320.webp', '640.webp', '640.avif', '1200.webp']);
+    expect(variants.map((v) => `${v.width}.${v.format}`)).toEqual([
+      '320.webp',
+      '640.webp',
+      '640.avif',
+      '1200.webp',
+    ]);
     const meta = await sharp(variants[0]!.buffer).metadata();
     expect(meta.width).toBe(320);
     expect(meta.height).toBe(416);
   });
 
   it('renders a branded cover for other documents', async () => {
-    const png = await renderCover({ title: 'P7 Mathematics Scheme of Work Term 1', subtitle: 'P7 • Mathematics', badge: 'Scheme of Work', fileLabel: 'Word' }, 'docx', 640);
+    const png = await renderCover(
+      {
+        title: 'P7 Mathematics Scheme of Work Term 1',
+        subtitle: 'P7 • Mathematics',
+        badge: 'Scheme of Work',
+        fileLabel: 'Word',
+      },
+      'docx',
+      640,
+    );
     const meta = await sharp(png).metadata();
     expect(meta.format).toBe('png');
     expect(meta.width).toBe(640);

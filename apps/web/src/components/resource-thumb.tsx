@@ -22,18 +22,33 @@ export function ResourceThumb({
 }) {
   if (!thumbnail) {
     return (
-      <div className={cn('flex aspect-[1/1.3] w-full items-center justify-center bg-gradient-to-br from-secondary to-muted p-3 text-center', className)}>
-        <span className="line-clamp-4 text-sm font-semibold text-secondary-foreground">{title}</span>
+      <div
+        className={cn(
+          'from-secondary to-muted flex aspect-[1/1.3] w-full items-center justify-center bg-gradient-to-br p-3 text-center',
+          className,
+        )}
+      >
+        <span className="text-secondary-foreground line-clamp-4 text-sm font-semibold">
+          {title}
+        </span>
         {fileLabel ? <span className="sr-only">{fileLabel}</span> : null}
       </div>
     );
   }
-  const webp = thumbnail.variants.filter((v) => v.format === 'webp').sort((a, b) => a.width - b.width);
+  const webp = thumbnail.variants
+    .filter((v) => v.format === 'webp')
+    .sort((a, b) => a.width - b.width);
   const avif = thumbnail.variants.filter((v) => v.format === 'avif');
   const fallback = webp[1] ?? webp[0];
   return (
-    <picture className={cn('block aspect-[1/1.3] w-full overflow-hidden bg-muted', className)}>
-      {avif.length ? <source type="image/avif" srcSet={avif.map((v) => `${v.url} ${v.width}w`).join(', ')} sizes={sizes} /> : null}
+    <picture className={cn('bg-muted block aspect-[1/1.3] w-full overflow-hidden', className)}>
+      {avif.length ? (
+        <source
+          type="image/avif"
+          srcSet={avif.map((v) => `${v.url} ${v.width}w`).join(', ')}
+          sizes={sizes}
+        />
+      ) : null}
       <img
         src={fallback?.url ?? thumbnail.src}
         srcSet={webp.map((v) => `${v.url} ${v.width}w`).join(', ')}

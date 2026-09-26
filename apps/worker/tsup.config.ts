@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsup';
+import { workspaceExternals } from '../../scripts/tsup-externals.mjs';
 
 export default defineConfig({
   entry: ['src/index.ts'],
@@ -10,5 +11,8 @@ export default defineConfig({
   sourcemap: true,
   splitting: false,
   noExternal: [/^@edushare\//],
-  banner: { js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);" },
+  external: workspaceExternals(new URL('../..', import.meta.url).pathname),
+  banner: {
+    js: "import { createRequire as __esCreateRequire } from 'module'; const require = __esCreateRequire(import.meta.url);",
+  },
 });

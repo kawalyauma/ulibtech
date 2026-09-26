@@ -26,7 +26,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const q = first((await searchParams).q)?.trim();
   return {
     title: q ? `Search results for “${q.slice(0, 60)}”` : 'Search free resources',
-    description: 'Search free notes, past papers, schemes of work and lesson plans for Ugandan schools.',
+    description:
+      'Search free notes, past papers, schemes of work and lesson plans for Ugandan schools.',
     alternates: { canonical: q ? `/search?q=${encodeURIComponent(q)}` : '/search' },
     // Search result pages are not indexed; landing pages carry the SEO weight.
     robots: { index: false, follow: true },
@@ -38,16 +39,24 @@ export default async function SearchPage({ searchParams }: Props) {
   const params = toApiParams(sp, { pageSize: '20' });
   const linkParams = toApiParams(sp);
   const q = params.get('q') ?? '';
-  const [result, taxonomy] = await Promise.all([search(params).catch(() => null), getTaxonomy().catch(() => null)]);
+  const [result, taxonomy] = await Promise.all([
+    search(params).catch(() => null),
+    getTaxonomy().catch(() => null),
+  ]);
   const values: Record<string, string | undefined> = Object.fromEntries(
-    ['class', 'subject', 'type', 'year', 'term', 'fileType', 'curriculum', 'level', 'sort'].map((k) => [k, params.get(k) ?? undefined]),
+    ['class', 'subject', 'type', 'year', 'term', 'fileType', 'curriculum', 'level', 'sort'].map(
+      (k) => [k, params.get(k) ?? undefined],
+    ),
   );
-  const activeFilters = Object.fromEntries(Object.entries(values).filter(([k, v]) => v && k !== 'sort')) as Record<string, string>;
+  const activeFilters = Object.fromEntries(
+    Object.entries(values).filter(([k, v]) => v && k !== 'sort'),
+  ) as Record<string, string>;
   const interpreted = result?.interpreted ?? {};
   const noResults = result !== null && result.total === 0;
 
   const nameOf = {
-    class: (s?: string) => taxonomy?.levels.flatMap((l) => l.classes).find((c) => c.slug === s)?.shortName ?? s,
+    class: (s?: string) =>
+      taxonomy?.levels.flatMap((l) => l.classes).find((c) => c.slug === s)?.shortName ?? s,
     subject: (s?: string) => taxonomy?.subjects.find((x) => x.slug === s)?.name ?? s,
     type: (s?: string) => taxonomy?.types.find((x) => x.slug === s)?.pluralName ?? s,
   };
@@ -56,12 +65,13 @@ export default async function SearchPage({ searchParams }: Props) {
     <PageContainer>
       <div className="mb-6 flex flex-col gap-3">
         <h1 className="sr-only">{q ? `Search results for ${q}` : 'Search resources'}</h1>
-        <SearchBox defaultValue={q} autoFocus={!q} />
+        <SearchBox key={q} defaultValue={q} autoFocus={!q} />
         {result ? (
-          <p className="text-sm text-muted-foreground" aria-live="polite">
+          <p className="text-muted-foreground text-sm" aria-live="polite">
             {q ? (
               <>
-                {pluralize(result.total, 'result')} for <strong className="text-foreground">“{q}”</strong>
+                {pluralize(result.total, 'result')} for{' '}
+                <strong className="text-foreground">“{q}”</strong>
               </>
             ) : (
               <>{pluralize(result.total, 'resource')}</>
@@ -70,7 +80,14 @@ export default async function SearchPage({ searchParams }: Props) {
               <span>
                 {' '}
                 · Showing{' '}
-                {[nameOf.class(interpreted.class), nameOf.subject(interpreted.subject), nameOf.type(interpreted.type), interpreted.year].filter(Boolean).join(' · ')}
+                {[
+                  nameOf.class(interpreted.class),
+                  nameOf.subject(interpreted.subject),
+                  nameOf.type(interpreted.type),
+                  interpreted.year,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
             ) : null}
           </p>
@@ -78,7 +95,10 @@ export default async function SearchPage({ searchParams }: Props) {
         {result?.didYouMean && result.didYouMean !== result.normalizedQuery ? (
           <p className="text-sm">
             {result.total > 0 && result.mode !== 'any' ? 'Showing results for ' : 'Did you mean '}
-            <Link href={`/search?q=${encodeURIComponent(result.didYouMean)}`} className="font-semibold text-primary underline">
+            <Link
+              href={`/search?q=${encodeURIComponent(result.didYouMean)}`}
+              className="text-primary font-semibold underline"
+            >
               {result.didYouMean}
             </Link>
             ?
@@ -88,19 +108,36 @@ export default async function SearchPage({ searchParams }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside>
-          <FilterForm action="/search" values={values} taxonomy={taxonomy} facets={result?.facets} hidden={{ q }} sortOptions={SORTS} />
+          <FilterForm
+            action="/search"
+            values={values}
+            taxonomy={taxonomy}
+            facets={result?.facets}
+            hidden={{ q }}
+            sortOptions={SORTS}
+          />
         </aside>
         <div className="flex min-w-0 flex-col gap-3">
           {result === null ? (
-            <div role="alert" className="rounded-xl border bg-card p-6 text-center">
+            <div role="alert" className="bg-card rounded-xl border p-6 text-center">
               <p className="font-semibold">Search is temporarily unavailable.</p>
-              <p className="mt-1 text-sm text-muted-foreground">Please check your connection and try again.</p>
-              <a href={`/search${linkParams.toString() ? `?${linkParams.toString()}` : ''}`} className="mt-4 inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground">
+              <p className="text-muted-foreground mt-1 text-sm">
+                Please check your connection and try again.
+              </p>
+              <a
+                href={`/search${linkParams.toString() ? `?${linkParams.toString()}` : ''}`}
+                className="bg-primary text-primary-foreground mt-4 inline-flex h-10 items-center rounded-md px-4 text-sm font-semibold"
+              >
                 Retry
               </a>
             </div>
           ) : noResults ? (
-            <NoResults q={q} didYouMean={result.didYouMean} interpretedClass={interpreted.class} interpretedSubject={interpreted.subject} />
+            <NoResults
+              q={q}
+              didYouMean={result.didYouMean}
+              interpretedClass={interpreted.class}
+              interpretedSubject={interpreted.subject}
+            />
           ) : (
             <>
               <ol className="flex flex-col gap-3">
@@ -110,36 +147,71 @@ export default async function SearchPage({ searchParams }: Props) {
                   </li>
                 ))}
               </ol>
-              <Pagination page={result.page} totalPages={result.totalPages} hrefFor={(p) => `/search${withParam(linkParams, 'page', p > 1 ? String(p) : null)}`} />
+              <Pagination
+                page={result.page}
+                totalPages={result.totalPages}
+                hrefFor={(p) => `/search${withParam(linkParams, 'page', p > 1 ? String(p) : null)}`}
+              />
             </>
           )}
         </div>
       </div>
-      {result ? <SearchTracker q={q} results={result.total} filters={{ ...activeFilters, ...(interpreted.class ? { interpretedClass: interpreted.class } : {}), ...(interpreted.subject ? { interpretedSubject: interpreted.subject } : {}) }} /> : null}
+      {result ? (
+        <SearchTracker
+          q={q}
+          results={result.total}
+          filters={{
+            ...activeFilters,
+            ...(interpreted.class ? { interpretedClass: interpreted.class } : {}),
+            ...(interpreted.subject ? { interpretedSubject: interpreted.subject } : {}),
+          }}
+        />
+      ) : null}
     </PageContainer>
   );
 }
 
-async function NoResults({ q, didYouMean, interpretedClass, interpretedSubject }: { q: string; didYouMean: string | null; interpretedClass?: string; interpretedSubject?: string }) {
-  const [cls, home] = await Promise.all([interpretedClass ? getClass(interpretedClass).catch(() => null) : null, getHome().catch(() => null)]);
-  const popular = home?.sections.find((s) => s.key === 'popular')?.items ?? home?.sections[0]?.items ?? [];
+async function NoResults({
+  q,
+  didYouMean,
+  interpretedClass,
+  interpretedSubject,
+}: {
+  q: string;
+  didYouMean: string | null;
+  interpretedClass?: string;
+  interpretedSubject?: string;
+}) {
+  const [cls, home] = await Promise.all([
+    interpretedClass ? getClass(interpretedClass).catch(() => null) : null,
+    getHome().catch(() => null),
+  ]);
+  const popular =
+    home?.sections.find((s) => s.key === 'popular')?.items ?? home?.sections[0]?.items ?? [];
   const classSubjects = cls?.subjects.filter((s) => s.count > 0) ?? [];
   const subjectName = home?.taxonomy.subjects.find((s) => s.slug === interpretedSubject)?.name;
   return (
     <div className="flex flex-col gap-8">
-      <div className="rounded-xl border bg-card p-6 text-center">
-        <SearchX className="mx-auto size-10 text-muted-foreground" aria-hidden="true" />
-        <h2 className="mt-3 text-lg font-semibold">{q ? `No results for “${q}”` : 'No resources match these filters'}</h2>
+      <div className="bg-card rounded-xl border p-6 text-center">
+        <SearchX className="text-muted-foreground mx-auto size-10" aria-hidden="true" />
+        <h2 className="mt-3 text-lg font-semibold">
+          {q ? `No results for “${q}”` : 'No resources match these filters'}
+        </h2>
         {didYouMean ? (
           <p className="mt-2">
             Did you mean{' '}
-            <Link href={`/search?q=${encodeURIComponent(didYouMean)}`} className="font-semibold text-primary underline">
+            <Link
+              href={`/search?q=${encodeURIComponent(didYouMean)}`}
+              className="text-primary font-semibold underline"
+            >
               {didYouMean}
             </Link>
             ?
           </p>
         ) : null}
-        <p className="mt-2 text-sm text-muted-foreground">Try fewer words, check the spelling, or browse by class and subject below.</p>
+        <p className="text-muted-foreground mt-2 text-sm">
+          Try fewer words, check the spelling, or browse by class and subject below.
+        </p>
         {q.split(/\s+/).length > 1 ? (
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             {q

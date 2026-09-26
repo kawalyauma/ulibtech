@@ -19,7 +19,10 @@ function pathOf(segments: string[]) {
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { segments } = await params;
-  const { data, page } = await loadLanding(pathOf(segments), await searchParams).catch(() => ({ data: null, page: 1 }));
+  const { data, page } = await loadLanding(pathOf(segments), await searchParams).catch(() => ({
+    data: null,
+    page: 1,
+  }));
   if (!data) return { title: 'Page not found', robots: { index: false } };
   return landingMetadata(data, page);
 }
@@ -27,7 +30,10 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function LandingPage({ params, searchParams }: Props) {
   const { segments } = await params;
   if (segments.length > 4) notFound();
-  const [{ data, page, values }, taxonomy] = await Promise.all([loadLanding(pathOf(segments), await searchParams), getTaxonomy().catch(() => null)]);
+  const [{ data, page, values }, taxonomy] = await Promise.all([
+    loadLanding(pathOf(segments), await searchParams),
+    getTaxonomy().catch(() => null),
+  ]);
   if (!data) notFound();
   return <LandingView data={data} taxonomy={taxonomy} page={page} values={values} />;
 }

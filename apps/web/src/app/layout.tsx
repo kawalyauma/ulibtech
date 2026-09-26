@@ -13,16 +13,29 @@ const DESCRIPTION =
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: `${SITE_NAME} – Free Past Papers, Notes, Schemes & Lesson Plans`, template: `%s | ${SITE_NAME}` },
+  title: {
+    default: `${SITE_NAME} – Free Past Papers, Notes, Schemes & Lesson Plans`,
+    template: `%s | ${SITE_NAME}`,
+  },
   description: DESCRIPTION,
   applicationName: SITE_NAME,
   alternates: { canonical: '/' },
   openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_UG', url: SITE_URL },
   twitter: { card: 'summary_large_image' },
-  robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 } },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
+  },
   formatDetection: { telephone: false },
   appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'default' },
-  icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }, { url: '/icons/icon-192.png', sizes: '192x192' }], apple: '/icons/apple-touch-icon.png' },
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icons/icon-192.png', sizes: '192x192' },
+    ],
+    apple: '/icons/apple-touch-icon.png',
+  },
 };
 
 export const viewport: Viewport = {
@@ -38,8 +51,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-UG">
       <body className="flex min-h-dvh flex-col antialiased">
-        <JsonLd data={websiteJsonLd({ name: SITE_NAME, url: SITE_URL, description: DESCRIPTION })} />
-        <JsonLd data={organizationJsonLd({ name: SITE_NAME, url: SITE_URL, logo: `${SITE_URL}/icons/icon-512.png` })} />
+        <JsonLd
+          data={websiteJsonLd({ name: SITE_NAME, url: SITE_URL, description: DESCRIPTION })}
+        />
+        <JsonLd
+          data={organizationJsonLd({
+            name: SITE_NAME,
+            url: SITE_URL,
+            logo: `${SITE_URL}/icons/icon-512.png`,
+          })}
+        />
         <SiteHeader />
         <main id="main" className="flex-1">
           {children}

@@ -19,17 +19,28 @@ export interface ResourceSeoInput {
 export function resourceSeoTitle(r: ResourceSeoInput): string {
   if (r.seoTitle) return r.seoTitle;
   const base = r.title;
-  const extra = r.typeName && !base.toLowerCase().includes(r.typeName.toLowerCase()) ? ` – ${r.typeName}` : '';
+  const extra =
+    r.typeName && !base.toLowerCase().includes(r.typeName.toLowerCase()) ? ` – ${r.typeName}` : '';
   return truncate(`${base}${extra}`, 60);
 }
 
 export function resourceSeoDescription(r: ResourceSeoInput): string {
   if (r.seoDescription) return r.seoDescription;
   const lead = r.shortDescription || r.description;
-  const context = [r.className, r.subjectName, r.typeName, r.termName, r.year ? String(r.year) : null].filter(Boolean).join(' ');
+  const context = [
+    r.className,
+    r.subjectName,
+    r.typeName,
+    r.termName,
+    r.year ? String(r.year) : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
   const file = r.fileLabel ? `${r.fileLabel}${r.pageCount ? `, ${r.pageCount} pages` : ''}` : null;
   const parts = [
-    lead ? truncate(lead.replace(/\s+/g, ' '), 110) : `Download ${r.title}${context ? ` for ${context}` : ''}.`,
+    lead
+      ? truncate(lead.replace(/\s+/g, ' '), 110)
+      : `Download ${r.title}${context ? ` for ${context}` : ''}.`,
     `Free download${file ? ` (${file})` : ''} – no account needed.`,
   ];
   return truncate(parts.join(' '), 160);
@@ -48,7 +59,12 @@ export interface LandingContext {
 
 /** "P6 Science Past Papers 2026" style headings for classification landing pages. */
 export function landingHeading(ctx: LandingContext): string {
-  const parts = [ctx.className, ctx.subjectName, ctx.typePlural ?? (ctx.className || ctx.subjectName ? 'Resources' : null), ctx.year ? String(ctx.year) : null];
+  const parts = [
+    ctx.className,
+    ctx.subjectName,
+    ctx.typePlural ?? (ctx.className || ctx.subjectName ? 'Resources' : null),
+    ctx.year ? String(ctx.year) : null,
+  ];
   const h = parts.filter(Boolean).join(' ');
   if (ctx.topicName) return `${ctx.topicName}${h ? ` – ${h}` : ''}`;
   return h || 'Educational Resources';
@@ -60,7 +76,9 @@ export function landingTitle(ctx: LandingContext): string {
 }
 
 export function landingDescription(ctx: LandingContext): string {
-  const what = (ctx.typePlural ?? 'notes, past papers, schemes of work and lesson plans').toLowerCase();
+  const what = (
+    ctx.typePlural ?? 'notes, past papers, schemes of work and lesson plans'
+  ).toLowerCase();
   const who = [ctx.classLongName ?? ctx.className, ctx.subjectName].filter(Boolean).join(' ');
   const year = ctx.year ? ` for ${ctx.year}` : '';
   const count = ctx.count ? `${ctx.count} ` : '';
@@ -72,6 +90,9 @@ export function landingDescription(ctx: LandingContext): string {
 
 export function landingIntro(ctx: LandingContext): string {
   const heading = landingHeading(ctx);
-  const audience = ctx.typePlural && /scheme|lesson plan|teacher/i.test(ctx.typePlural) ? 'teachers' : 'learners, teachers and parents';
+  const audience =
+    ctx.typePlural && /scheme|lesson plan|teacher/i.test(ctx.typePlural)
+      ? 'teachers'
+      : 'learners, teachers and parents';
   return `Browse ${heading.toLowerCase().startsWith('p') || heading.toLowerCase().startsWith('s') ? '' : 'our '}${heading} collection. Every resource is free to preview and download without creating an account, and is organised so ${audience} can quickly find what they need. Use the filters to narrow down by term, year or topic.`;
 }

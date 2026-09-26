@@ -21,7 +21,13 @@ export function termToTsquery(term: string, extraSynonyms: string[] = []): strin
 }
 
 /** Builds a to_tsquery() expression joining terms with AND (`&`) or OR (`|`). */
-export function buildTsquery(terms: string[], operator: '&' | '|', synonymsFor?: (t: string) => string[]): string {
-  const parts = terms.map((t) => termToTsquery(t, synonymsFor?.(t) ?? [])).filter((p): p is string => Boolean(p));
+export function buildTsquery(
+  terms: string[],
+  operator: '&' | '|',
+  synonymsFor?: (t: string) => string[],
+): string {
+  const parts = terms
+    .map((t) => termToTsquery(t, synonymsFor?.(t) ?? []))
+    .filter((p): p is string => Boolean(p));
   return parts.join(` ${operator} `);
 }

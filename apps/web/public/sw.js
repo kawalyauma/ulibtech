@@ -6,14 +6,21 @@ const IMAGE_CACHE = `es-images-${VERSION}`;
 const PRECACHE = ['/offline', '/icon.svg', '/icons/icon-192.png'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(STATIC_CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches
+      .open(STATIC_CACHE)
+      .then((c) => c.addAll(PRECACHE))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => !k.endsWith(VERSION)).map((k) => caches.delete(k))))
+      .then((keys) =>
+        Promise.all(keys.filter((k) => !k.endsWith(VERSION)).map((k) => caches.delete(k))),
+      )
       .then(() => self.clients.claim()),
   );
 });
@@ -39,7 +46,10 @@ async function cacheFirst(request, cacheName, max) {
 async function networkFirst(request) {
   const cache = await caches.open(PAGE_CACHE);
   try {
-    const res = await Promise.race([fetch(request), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000))]);
+    const res = await Promise.race([
+      fetch(request),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000)),
+    ]);
     if (res.ok) {
       cache.put(request, res.clone());
       trim(PAGE_CACHE, 40);
@@ -58,7 +68,11 @@ self.addEventListener('fetch', (event) => {
   // Never intercept API calls or downloads (tracking and large files).
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/download/')) return;
 
-  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/pdfjs/') || url.pathname.startsWith('/icons/')) {
+  if (
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.startsWith('/pdfjs/') ||
+    url.pathname.startsWith('/icons/')
+  ) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
     return;
   }

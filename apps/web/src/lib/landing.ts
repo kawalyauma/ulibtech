@@ -15,6 +15,12 @@ export function landingParams(sp: RawSearchParams) {
 
 export async function loadLanding(path: string, sp: RawSearchParams) {
   const { page, values } = landingParams(sp);
-  const data = await getLanding(path, { page: String(page), term: values.term, year: values.year, fileType: values.fileType, sort: values.sort });
+  const data = await getLanding(path, {
+    page: String(page),
+    term: values.term,
+    year: values.year,
+    fileType: values.fileType,
+    sort: values.sort,
+  });
   return { data, page, values };
 }

@@ -17,7 +17,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!c) return { title: 'Collection not found', robots: { index: false } };
   return {
     title: c.seoTitle ?? c.title,
-    description: c.seoDescription ?? c.description ?? `${c.resourceCount} free resources in the ${c.title} collection.`,
+    description:
+      c.seoDescription ??
+      c.description ??
+      `${c.resourceCount} free resources in the ${c.title} collection.`,
     alternates: { canonical: `/collections/${c.slug}` },
   };
 }
@@ -28,11 +31,27 @@ export default async function CollectionPage({ params }: Props) {
   if (!c) notFound();
   return (
     <PageContainer>
-      <Breadcrumbs items={[{ name: 'Home', path: '/' }, { name: 'Collections', path: '/collections' }, { name: c.title, path: `/collections/${c.slug}` }]} />
-      <JsonLd data={collectionPageJsonLd({ name: c.title, description: c.description ?? c.title, url: absoluteUrl(`/collections/${c.slug}`), items: c.resources.map((r) => ({ name: r.title, url: absoluteUrl(`/resources/${r.slug}`) })) })} />
+      <Breadcrumbs
+        items={[
+          { name: 'Home', path: '/' },
+          { name: 'Collections', path: '/collections' },
+          { name: c.title, path: `/collections/${c.slug}` },
+        ]}
+      />
+      <JsonLd
+        data={collectionPageJsonLd({
+          name: c.title,
+          description: c.description ?? c.title,
+          url: absoluteUrl(`/collections/${c.slug}`),
+          items: c.resources.map((r) => ({
+            name: r.title,
+            url: absoluteUrl(`/resources/${r.slug}`),
+          })),
+        })}
+      />
       <header className="mb-6 flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{c.title}</h1>
-        {c.description ? <p className="max-w-3xl text-muted-foreground">{c.description}</p> : null}
+        {c.description ? <p className="text-muted-foreground max-w-3xl">{c.description}</p> : null}
         <p className="text-sm font-medium">{c.resources.length} resources</p>
       </header>
       <ResourceGrid items={c.resources} priorityCount={2} />

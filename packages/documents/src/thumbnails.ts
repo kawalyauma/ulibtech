@@ -23,7 +23,10 @@ export interface ThumbnailVariantBuffer {
 export const THUMB_RATIO = 1.3;
 
 function escapeXml(s: string): string {
-  return s.replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c] ?? c);
+  return s.replace(
+    /[<>&'"]/g,
+    (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c] ?? c,
+  );
 }
 
 function wrap(text: string, maxChars: number, maxLines: number): string[] {
@@ -63,7 +66,10 @@ export async function renderCover(info: CoverInfo, kind: string, width = 1200): 
   const [c1, c2] = PALETTE[kind] ?? PALETTE.default!;
   const titleLines = wrap(info.title, 18, 5);
   const titleSvg = titleLines
-    .map((l, i) => `<text x="90" y="${520 + i * 104}" font-size="84" font-weight="700" fill="#ffffff">${escapeXml(l)}</text>`)
+    .map(
+      (l, i) =>
+        `<text x="90" y="${520 + i * 104}" font-size="84" font-weight="700" fill="#ffffff">${escapeXml(l)}</text>`,
+    )
     .join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="${Math.round(1200 * THUMB_RATIO)}" viewBox="0 0 1200 ${Math.round(1200 * THUMB_RATIO)}">
   <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>
@@ -112,7 +118,11 @@ async function renderPdfFirstPage(file: string, width = 1200): Promise<Buffer | 
 }
 
 /** Produces a high-resolution source image for thumbnails. */
-export async function renderSourceImage(file: string, kind: AllowedFileKind, cover: CoverInfo): Promise<Buffer> {
+export async function renderSourceImage(
+  file: string,
+  kind: AllowedFileKind,
+  cover: CoverInfo,
+): Promise<Buffer> {
   if (kind === 'pdf') {
     const rendered = await renderPdfFirstPage(file);
     if (rendered) return rendered;
@@ -132,9 +142,19 @@ export async function createThumbnailVariants(source: Buffer): Promise<Thumbnail
   for (const width of THUMBNAIL_WIDTHS) {
     const height = Math.round(width * THUMB_RATIO);
     const pipeline = sharp(source).resize(width, height, { fit: 'cover', position: 'top' });
-    out.push({ width, height, format: 'webp', buffer: await pipeline.clone().webp({ quality: 78, effort: 4 }).toBuffer() });
+    out.push({
+      width,
+      height,
+      format: 'webp',
+      buffer: await pipeline.clone().webp({ quality: 78, effort: 4 }).toBuffer(),
+    });
     if (width === 640) {
-      out.push({ width, height, format: 'avif', buffer: await pipeline.clone().avif({ quality: 55, effort: 3 }).toBuffer() });
+      out.push({
+        width,
+        height,
+        format: 'avif',
+        buffer: await pipeline.clone().avif({ quality: 55, effort: 3 }).toBuffer(),
+      });
     }
   }
   return out;

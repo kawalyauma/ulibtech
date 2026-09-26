@@ -102,7 +102,13 @@ export interface QueueHealth {
 export async function getQueueHealth(): Promise<QueueHealth[]> {
   return Promise.all(
     Object.values(QUEUES).map(async (name) => {
-      const counts = await getQueue(name).getJobCounts('waiting', 'active', 'failed', 'delayed', 'completed');
+      const counts = await getQueue(name).getJobCounts(
+        'waiting',
+        'active',
+        'failed',
+        'delayed',
+        'completed',
+      );
       return {
         name,
         waiting: counts.waiting ?? 0,

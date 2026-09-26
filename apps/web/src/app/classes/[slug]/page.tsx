@@ -11,8 +11,13 @@ type Props = { params: Promise<{ slug: string }>; searchParams: Promise<RawSearc
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const { data, page } = await loadLanding(`/classes/${slug}`, await searchParams).catch(() => ({ data: null, page: 1 }));
-  return data ? landingMetadata(data, page) : { title: 'Class not found', robots: { index: false } };
+  const { data, page } = await loadLanding(`/classes/${slug}`, await searchParams).catch(() => ({
+    data: null,
+    page: 1,
+  }));
+  return data
+    ? landingMetadata(data, page)
+    : { title: 'Class not found', robots: { index: false } };
 }
 
 export default async function ClassPage({ params, searchParams }: Props) {
@@ -26,7 +31,7 @@ export default async function ClassPage({ params, searchParams }: Props) {
   const subjects = cls?.subjects ?? [];
   const extra = subjects.length ? (
     <section aria-label="Subjects" className="mb-6 flex flex-col gap-2">
-      <h2 className="text-sm font-semibold text-muted-foreground">Subjects</h2>
+      <h2 className="text-muted-foreground text-sm font-semibold">Subjects</h2>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:flex-wrap">
         {subjects.map((s) => (
           <ChipLink key={s.slug} href={`/${slug}/${s.slug}`} count={s.count}>

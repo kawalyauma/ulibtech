@@ -1,0 +1,162 @@
+# Production stack. Usage:
+#   cp .env.production.example .env && edit
+#   docker compose build && docker compose up -d
+#   docker compose run --rm api node dist/scripts/create-admin.js admin@school.ug "Your Name"
+name: edushare
+
+x-app-env: &app-env
+  NODE_ENV: production
+  SITE_NAME: ${SITE_NAME:-EduShare Uganda}
+  PUBLIC_SITE_URL: https://${PUBLIC_DOMAIN}
+  ADMIN_SITE_URL: https://${ADMIN_DOMAIN}
+  ADMIN_ALLOWED_ORIGINS: https://${ADMIN_DOMAIN}
+  API_INTERNAL_URL: http://api:4000
+  WEB_INTERNAL_URL: http://web:3000
+  DATABASE_URL: postgres://${POSTGRES_USER:-edushare}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-edushare}
+  REDIS_URL: redis://redis:6379
+  COOKIE_SECURE: 'true'
+  TRUST_PROXY: 'true'
+  ANALYTICS_SALT: ${ANALYTICS_SALT}
+  REVALIDATE_SECRET: ${REVALIDATE_SECRET}
+  STORAGE_ROOT: /opt/edushare/storage
+  STORAGE_ACCEL_REDIRECT: 'true'
+  MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-100}
+  SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-120}
+  SESSION_ABSOLUTE_HOURS: ${SESSION_ABSOLUTE_HOURS:-12}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-edushare}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-edushare}
+    command:
+      [
+        'postgres',
+        '-c',
+        'shared_buffers=256MB',
+        '-c',
+        'work_mem=16MB',
+        '-c',
+        'maintenance_work_mem=128MB',
+        '-c',
+        'max_connections=100',
+      ]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-edushare} -d ${POSTGRES_DB:-edushare}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--maxmemory',
+        '512mb',
+        '--maxmemory-policy',
+        'noeviction',
+      ]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # One-off: applies migrations and seeds default taxonomy (idempotent).
+  migrate:
+    build: { context: ., dockerfile: docker/Dockerfile, target: api }
+    image: edushare-api:latest
+    command: ['node', 'dist/scripts/migrate.js']
+    environment: *app-env
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: 'no'
+
+  api:
+    image: edushare-api:latest
+    restart: unless-stopped
+    environment: *app-env
+    volumes:
+      - ${STORAGE_PATH:-/opt/edushare/storage}:/opt/edushare/storage
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker:
+    build: { context: ., dockerfile: docker/Dockerfile, target: worker }
+    image: edushare-worker:latest
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      WORKER_PROCESSING_CONCURRENCY: ${WORKER_PROCESSING_CONCURRENCY:-2}
+      # CLAMAV_HOST: clamav
+    volumes:
+      - ${STORAGE_PATH:-/opt/edushare/storage}:/opt/edushare/storage
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: web
+      args:
+        PUBLIC_SITE_URL: https://${PUBLIC_DOMAIN}
+        SITE_NAME: ${SITE_NAME:-EduShare Uganda}
+    image: edushare-web:latest
+    restart: unless-stopped
+    environment: *app-env
+    depends_on: [api]
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: admin
+      args:
+        PUBLIC_SITE_URL: https://${PUBLIC_DOMAIN}
+        MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-100}
+    image: edushare-admin:latest
+    restart: unless-stopped
+    environment: *app-env
+    depends_on: [api]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/templates:/etc/nginx/templates:ro
+      - ./docker/nginx/snippets:/etc/nginx/snippets:ro
+      - ${CERTS_PATH:-/etc/letsencrypt/live}:/etc/nginx/certs:ro
+      - ${CERTS_ARCHIVE_PATH:-/etc/letsencrypt/archive}:/etc/archive:ro
+      - ./docker/certbot-www:/var/www/certbot:ro
+      - ${STORAGE_PATH:-/opt/edushare/storage}:/opt/edushare/storage:ro
+      - nginxcache:/var/cache/nginx
+    depends_on: [web, admin, api]
+
+  # Optional malware scanning: uncomment and set CLAMAV_HOST on the worker.
+  # clamav:
+  #   image: clamav/clamav:stable
+  #   restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  nginxcache:

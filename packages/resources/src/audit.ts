@@ -25,7 +25,10 @@ export async function recordAudit(
 }
 
 /** Returns only the fields whose values changed, as { field: { from, to } }. */
-export function diff(before: Record<string, unknown>, after: Record<string, unknown>): Record<string, { from: unknown; to: unknown }> {
+export function diff(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): Record<string, { from: unknown; to: unknown }> {
   const out: Record<string, { from: unknown; to: unknown }> = {};
   for (const [k, v] of Object.entries(after)) {
     if (v === undefined) continue;

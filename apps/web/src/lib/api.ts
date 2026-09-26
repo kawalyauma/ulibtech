@@ -49,7 +49,12 @@ export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promis
     } catch {
       /* non-JSON error */
     }
-    throw new ApiError(res.status, body.error?.code ?? 'HTTP_ERROR', body.error?.message ?? `API request failed (${res.status})`, body.error?.details);
+    throw new ApiError(
+      res.status,
+      body.error?.code ?? 'HTTP_ERROR',
+      body.error?.message ?? `API request failed (${res.status})`,
+      body.error?.details,
+    );
   }
   return (await res.json()) as T;
 }
@@ -57,9 +62,22 @@ export async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promis
 // ------------------------------------------------------------------ typed endpoints
 
 export interface PublicTaxonomy {
-  levels: { id: string; name: string; slug: string; classes: { id: string; name: string; shortName: string | null; slug: string; count: number }[] }[];
+  levels: {
+    id: string;
+    name: string;
+    slug: string;
+    classes: { id: string; name: string; shortName: string | null; slug: string; count: number }[];
+  }[];
   subjects: { id: string; name: string; slug: string; shortName: string | null; count: number }[];
-  types: { id: string; name: string; pluralName: string; slug: string; showInNav: boolean; count: number; description: string | null }[];
+  types: {
+    id: string;
+    name: string;
+    pluralName: string;
+    slug: string;
+    showInNav: boolean;
+    count: number;
+    description: string | null;
+  }[];
   years: { id: string; year: number; count: number }[];
   terms: { id: string; name: string; slug: string; count: number }[];
   curricula: { id: string; name: string; slug: string; count: number }[];
@@ -100,24 +118,32 @@ export interface LandingResult {
 }
 
 export const getHome = () => apiFetch<HomeData>('/api/home', { revalidate: 120, tags: ['home'] });
-export const getTaxonomy = () => apiFetch<PublicTaxonomy>('/api/taxonomy', { revalidate: 600, tags: ['taxonomy'] });
-export const getSiteSettings = () => apiFetch<{ site: SiteSettings }>('/api/settings/public', { revalidate: 600, tags: ['settings'] });
+export const getTaxonomy = () =>
+  apiFetch<PublicTaxonomy>('/api/taxonomy', { revalidate: 600, tags: ['taxonomy'] });
+export const getSiteSettings = () =>
+  apiFetch<{ site: SiteSettings }>('/api/settings/public', { revalidate: 600, tags: ['settings'] });
 
-export type ResourceLookup = { resource: ResourceDetail } | { redirect: string } | { unavailable: string } | null;
+export type ResourceLookup =
+  { resource: ResourceDetail } | { redirect: string } | { unavailable: string } | null;
 
 export async function getResource(slug: string): Promise<ResourceLookup> {
   try {
-    const data = await apiFetch<{ resource?: ResourceDetail; redirect?: string }>(`/api/resources/${encodeURIComponent(slug)}`, {
-      revalidate: 300,
-      tags: ['resources', `resource:${slug}`],
-      allow404: true,
-    });
+    const data = await apiFetch<{ resource?: ResourceDetail; redirect?: string }>(
+      `/api/resources/${encodeURIComponent(slug)}`,
+      {
+        revalidate: 300,
+        tags: ['resources', `resource:${slug}`],
+        allow404: true,
+      },
+    );
     if (!data) return null;
     if (data.redirect) return { redirect: data.redirect };
     return data.resource ? { resource: data.resource } : null;
   } catch (err) {
     if (err instanceof ApiError && err.status === 410) {
-      return { unavailable: (err.details as { title?: string } | undefined)?.title ?? 'This resource' };
+      return {
+        unavailable: (err.details as { title?: string } | undefined)?.title ?? 'This resource',
+      };
     }
     throw err;
   }
@@ -131,32 +157,64 @@ export const getRelated = (slug: string) =>
   });
 
 export function search(params: URLSearchParams) {
-  return apiFetch<SearchResponse>(`/api/search?${params.toString()}`, { revalidate: 60, tags: ['resources'] });
+  return apiFetch<SearchResponse>(`/api/search?${params.toString()}`, {
+    revalidate: 60,
+    tags: ['resources'],
+  });
 }
 
 export function getLanding(path: string, params: Record<string, string | undefined> = {}) {
   const qs = new URLSearchParams({ path });
   for (const [k, v] of Object.entries(params)) if (v) qs.set(k, v);
-  return apiFetch<LandingResult>(`/api/landing?${qs.toString()}`, { revalidate: 300, tags: ['landing', 'resources'], allow404: true });
+  return apiFetch<LandingResult>(`/api/landing?${qs.toString()}`, {
+    revalidate: 300,
+    tags: ['landing', 'resources'],
+    allow404: true,
+  });
 }
 
 export const getClass = (slug: string) =>
-  apiFetch<{ class: { id: string; name: string; shortName: string | null; slug: string; count: number }; level: { name: string; slug: string }; subjects: { id: string; name: string; slug: string; count: number }[] }>(
-    `/api/classes/${encodeURIComponent(slug)}`,
-    { revalidate: 300, tags: ['taxonomy', 'resources'], allow404: true },
-  );
-
-export const getCollections = () => apiFetch<{ items: PublicCollection[] }>('/api/collections', { revalidate: 300, tags: ['collections'] });
-export const getCollection = (slug: string) =>
-  apiFetch<PublicCollection & { resources: ResourceCard[] }>(`/api/collections/${encodeURIComponent(slug)}`, {
+  apiFetch<{
+    class: { id: string; name: string; shortName: string | null; slug: string; count: number };
+    level: { name: string; slug: string };
+    subjects: { id: string; name: string; slug: string; count: number }[];
+  }>(`/api/classes/${encodeURIComponent(slug)}`, {
     revalidate: 300,
-    tags: ['collections', 'resources'],
+    tags: ['taxonomy', 'resources'],
     allow404: true,
   });
 
-export const getSitemapIndex = () => apiFetch<{ items: { name: string; lastmod: string | null }[] }>('/api/seo/sitemap', { revalidate: 3600, tags: ['sitemap'] });
-export const getSitemap = (name: string) =>
-  apiFetch<{ items: { loc: string; lastmod?: string | null; changefreq?: string; priority?: number; image?: string | null }[] }>(
-    `/api/seo/sitemap/${encodeURIComponent(name)}`,
-    { revalidate: 3600, tags: ['sitemap'], allow404: true },
+export const getCollections = () =>
+  apiFetch<{ items: PublicCollection[] }>('/api/collections', {
+    revalidate: 300,
+    tags: ['collections'],
+  });
+export const getCollection = (slug: string) =>
+  apiFetch<PublicCollection & { resources: ResourceCard[] }>(
+    `/api/collections/${encodeURIComponent(slug)}`,
+    {
+      revalidate: 300,
+      tags: ['collections', 'resources'],
+      allow404: true,
+    },
   );
+
+export const getSitemapIndex = () =>
+  apiFetch<{ items: { name: string; lastmod: string | null }[] }>('/api/seo/sitemap', {
+    revalidate: 3600,
+    tags: ['sitemap'],
+  });
+export const getSitemap = (name: string) =>
+  apiFetch<{
+    items: {
+      loc: string;
+      lastmod?: string | null;
+      changefreq?: string;
+      priority?: number;
+      image?: string | null;
+    }[];
+  }>(`/api/seo/sitemap/${encodeURIComponent(name)}`, {
+    revalidate: 3600,
+    tags: ['sitemap'],
+    allow404: true,
+  });

@@ -32,11 +32,17 @@ async function main() {
     const existing = await db.query.admins.findFirst({ where: eq(admins.email, email) });
     let id: string;
     if (existing) {
-      await db.update(admins).set({ passwordHash, name, isActive: true, passwordChangedAt: new Date() }).where(eq(admins.id, existing.id));
+      await db
+        .update(admins)
+        .set({ passwordHash, name, isActive: true, passwordChangedAt: new Date() })
+        .where(eq(admins.id, existing.id));
       id = existing.id;
       console.log(`Updated administrator ${email}`);
     } else {
-      const [row] = await db.insert(admins).values({ email, name, passwordHash }).returning({ id: admins.id });
+      const [row] = await db
+        .insert(admins)
+        .values({ email, name, passwordHash })
+        .returning({ id: admins.id });
       id = row!.id;
       console.log(`Created administrator ${email}`);
     }

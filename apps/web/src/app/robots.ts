@@ -3,8 +3,9 @@ import { SITE_URL } from '@/lib/config';
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [{ userAgent: '*', allow: '/', disallow: ['/api/', '/download/', '/search?', '/offline'] }],
+    rules: [
+      { userAgent: '*', allow: '/', disallow: ['/api/', '/download/', '/search?', '/offline'] },
+    ],
     sitemap: `${SITE_URL}/sitemap.xml`,
-    host: SITE_URL,
   };
 }

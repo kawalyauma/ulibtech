@@ -33,7 +33,9 @@ function looksLikeText(head: Buffer): boolean {
   if (head.length === 0) return false;
   if (head.includes(0)) return false;
   try {
-    new TextDecoder('utf-8', { fatal: true }).decode(head.subarray(0, Math.min(head.length, 16_000)));
+    new TextDecoder('utf-8', { fatal: true }).decode(
+      head.subarray(0, Math.min(head.length, 16_000)),
+    );
     return true;
   } catch {
     return false;
@@ -45,7 +47,10 @@ function looksLikeText(head: Buffer): boolean {
  * used to disambiguate container formats (legacy Office CFB files) and must agree with the
  * detected type; mismatches are rejected.
  */
-export async function detectFileType(head: Buffer, originalName: string): Promise<DetectedFileType> {
+export async function detectFileType(
+  head: Buffer,
+  originalName: string,
+): Promise<DetectedFileType> {
   const ext = fileExtension(originalName);
   const detected = await fileTypeFromBuffer(head);
 

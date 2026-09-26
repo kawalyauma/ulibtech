@@ -21,7 +21,8 @@ export async function parseMultipart(
   opts: { maxFileBytes: number; maxFiles: number; allowedFields?: string[] },
 ): Promise<ParsedMultipart> {
   const type = c.req.header('content-type') ?? '';
-  if (!type.startsWith('multipart/form-data')) throw new AppError('UNSUPPORTED_MEDIA_TYPE', 'Expected multipart/form-data');
+  if (!type.startsWith('multipart/form-data'))
+    throw new AppError('UNSUPPORTED_MEDIA_TYPE', 'Expected multipart/form-data');
   const body = c.req.raw.body;
   if (!body) throw new AppError('BAD_REQUEST', 'Empty request body');
 
@@ -32,7 +33,13 @@ export async function parseMultipart(
 
   const bb = Busboy({
     headers: { 'content-type': type },
-    limits: { fileSize: opts.maxFileBytes, files: opts.maxFiles, fields: 60, fieldSize: 64 * 1024, parts: opts.maxFiles + 60 },
+    limits: {
+      fileSize: opts.maxFileBytes,
+      files: opts.maxFiles,
+      fields: 60,
+      fieldSize: 64 * 1024,
+      parts: opts.maxFiles + 60,
+    },
     defParamCharset: 'utf8',
   });
 
@@ -72,14 +79,25 @@ export async function parseMultipart(
           .upload(tempKey, stream.pipe(meter))
           .then(() => {
             if (truncated) {
-              throw new AppError('PAYLOAD_TOO_LARGE', `"${originalName}" is larger than the ${Math.round(opts.maxFileBytes / 1024 / 1024)} MB limit.`);
+              throw new AppError(
+                'PAYLOAD_TOO_LARGE',
+                `"${originalName}" is larger than the ${Math.round(opts.maxFileBytes / 1024 / 1024)} MB limit.`,
+              );
             }
-            files.push({ field, tempKey, originalName, sizeBytes: size, sha256: hash.digest('hex') });
+            files.push({
+              field,
+              tempKey,
+              originalName,
+              sizeBytes: size,
+              sha256: hash.digest('hex'),
+            });
           })
           .catch(fail),
       );
     });
-    bb.on('filesLimit', () => fail(new AppError('BAD_REQUEST', `You can upload at most ${opts.maxFiles} files at once.`)));
+    bb.on('filesLimit', () =>
+      fail(new AppError('BAD_REQUEST', `You can upload at most ${opts.maxFiles} files at once.`)),
+    );
     bb.on('error', fail);
     bb.on('close', () => {
       Promise.all(pending).then(() => {
@@ -88,7 +106,9 @@ export async function parseMultipart(
     });
   });
 
-  Readable.fromWeb(body as import('node:stream/web').ReadableStream).on('error', (err) => bb.destroy(err)).pipe(bb);
+  Readable.fromWeb(body as import('node:stream/web').ReadableStream)
+    .on('error', (err) => bb.destroy(err))
+    .pipe(bb);
   try {
     await done;
   } catch (err) {

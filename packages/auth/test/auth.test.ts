@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { hashPassword, verifyPassword, hashToken, generateToken, hasPermission, safeEqual } from '../src';
+import {
+  hashPassword,
+  verifyPassword,
+  hashToken,
+  generateToken,
+  hasPermission,
+  safeEqual,
+} from '../src';
 
 describe('password hashing', () => {
   it('uses argon2id and verifies correctly', async () => {

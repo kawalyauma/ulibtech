@@ -45,29 +45,67 @@ export async function getHome(ctx: ServiceContext): Promise<HomeData> {
     for (const s of homepage.sections) {
       if (!s.enabled) continue;
       if (s.key === 'featured') {
-        const items = await listCards(ctx, { where: [eq(resources.featured, true)], order: 'newest', limit: 8 });
-        if (items.length) sections.push({ key: s.key, title: s.title ?? 'Featured resources', href: '/search?featured=true', items });
+        const items = await listCards(ctx, {
+          where: [eq(resources.featured, true)],
+          order: 'newest',
+          limit: 8,
+        });
+        if (items.length)
+          sections.push({
+            key: s.key,
+            title: s.title ?? 'Featured resources',
+            href: '/search?featured=true',
+            items,
+          });
       } else if (s.key === 'recent') {
-        sections.push({ key: s.key, title: s.title ?? 'Recently added', href: '/search?sort=newest', items: await listCards(ctx, { order: 'newest', limit: 8 }) });
+        sections.push({
+          key: s.key,
+          title: s.title ?? 'Recently added',
+          href: '/search?sort=newest',
+          items: await listCards(ctx, { order: 'newest', limit: 8 }),
+        });
       } else if (s.key === 'popular') {
-        sections.push({ key: s.key, title: s.title ?? 'Popular downloads', href: '/search?sort=downloads', items: await listCards(ctx, { order: 'downloads', limit: 8 }) });
+        sections.push({
+          key: s.key,
+          title: s.title ?? 'Popular downloads',
+          href: '/search?sort=downloads',
+          items: await listCards(ctx, { order: 'downloads', limit: 8 }),
+        });
       } else if (s.key === 'trending') {
-        sections.push({ key: s.key, title: s.title ?? 'Trending this week', href: '/search?sort=trending_week', items: await listCards(ctx, { order: 'trending_week', limit: 8 }) });
+        sections.push({
+          key: s.key,
+          title: s.title ?? 'Trending this week',
+          href: '/search?sort=trending_week',
+          items: await listCards(ctx, { order: 'trending_week', limit: 8 }),
+        });
       } else if (s.key in TYPE_SECTIONS) {
         const type = vocab.types.find((t) => t.slug === s.key);
         if (!type) continue;
-        const items = await listCards(ctx, { where: [eq(resources.resourceTypeId, type.id)], order: 'trending_week', limit: 8 });
-        if (items.length) sections.push({ key: s.key, title: s.title ?? TYPE_SECTIONS[s.key]!, href: `/${type.slug}`, items });
+        const items = await listCards(ctx, {
+          where: [eq(resources.resourceTypeId, type.id)],
+          order: 'trending_week',
+          limit: 8,
+        });
+        if (items.length)
+          sections.push({
+            key: s.key,
+            title: s.title ?? TYPE_SECTIONS[s.key]!,
+            href: `/${type.slug}`,
+            items,
+          });
       }
     }
     const collections = homepage.sections.some((s) => s.key === 'collections' && s.enabled)
       ? await listPublicCollections(ctx, { limit: 6 }).then((all) =>
-          homepage.featuredCollectionIds.length ? all.filter((c) => homepage.featuredCollectionIds.includes(c.id)) : all.filter((c) => c.resourceCount > 0),
+          homepage.featuredCollectionIds.length
+            ? all.filter((c) => homepage.featuredCollectionIds.includes(c.id))
+            : all.filter((c) => c.resourceCount > 0),
         )
       : [];
-    const featuredSubjects = (homepage.featuredSubjectIds.length
-      ? taxonomy.subjects.filter((s) => homepage.featuredSubjectIds.includes(s.id))
-      : [...taxonomy.subjects].sort((a, b) => b.count - a.count).slice(0, 12)
+    const featuredSubjects = (
+      homepage.featuredSubjectIds.length
+        ? taxonomy.subjects.filter((s) => homepage.featuredSubjectIds.includes(s.id))
+        : [...taxonomy.subjects].sort((a, b) => b.count - a.count).slice(0, 12)
     ).map((s) => ({ name: s.name, slug: s.slug, count: s.count }));
     return {
       site,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Eye, Loader2, Minus, Plus } from 'lucide-react';
 import { Button } from '@edushare/ui';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
@@ -10,13 +10,20 @@ import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
  * asks for a preview, and the document is fetched in 64 KB range chunks so the first page
  * appears without downloading the whole file.
  */
-export function PdfPreview({ url, pageCount, title }: { url: string; pageCount: number | null; title: string }) {
+export function PdfPreview({
+  url,
+  pageCount,
+  title,
+}: {
+  url: string;
+  pageCount: number | null;
+  title: string;
+}) {
   const [started, setStarted] = useState(false);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [page, setPage] = useState(1);
   const [scale, setScale] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [rendering, setRendering] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const taskRef = useRef<RenderTask | null>(null);
@@ -39,7 +46,8 @@ export function PdfPreview({ url, pageCount, title }: { url: string; pageCount: 
         loaded = await task.promise;
         if (!cancelled) setDoc(loaded);
       } catch {
-        if (!cancelled) setError('The preview could not be loaded. You can still download the file.');
+        if (!cancelled)
+          setError('The preview could not be loaded. You can still download the file.');
       }
     })();
     return () => {
@@ -48,43 +56,45 @@ export function PdfPreview({ url, pageCount, title }: { url: string; pageCount: 
     };
   }, [started, url]);
 
-  const render = useCallback(async () => {
-    if (!doc || !canvasRef.current || !wrapRef.current) return;
-    setRendering(true);
-    try {
-      // A canvas can only be used by one render at a time: cancel and wait for the previous one.
-      if (taskRef.current) {
-        taskRef.current.cancel();
-        await taskRef.current.promise.catch(() => undefined);
-        taskRef.current = null;
-      }
-      const p = await doc.getPage(page);
-      const base = p.getViewport({ scale: 1 });
-      const fit = (wrapRef.current.clientWidth - 2) / base.width;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const viewport = p.getViewport({ scale: fit * scale * dpr });
-      const canvas = canvasRef.current;
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      canvas.style.width = `${Math.floor(viewport.width / dpr)}px`;
-      canvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
-      const task = p.render({ canvas, viewport } as Parameters<typeof p.render>[0]);
-      taskRef.current = task;
-      await task.promise;
-    } catch (err) {
-      const name = (err as { name?: string }).name ?? '';
-      if (!/Cancel/i.test(name)) {
-        console.error('[pdf-preview]', err);
-        setError('This page could not be displayed.');
-      }
-    } finally {
-      setRendering(false);
-    }
-  }, [doc, page, scale]);
-
   useEffect(() => {
-    void render();
-  }, [render]);
+    if (!doc) return;
+    let cancelled = false;
+    (async () => {
+      const canvas = canvasRef.current;
+      const wrap = wrapRef.current;
+      if (!canvas || !wrap) return;
+      try {
+        // A canvas can only be used by one render at a time: cancel and wait for the previous one.
+        if (taskRef.current) {
+          taskRef.current.cancel();
+          await taskRef.current.promise.catch(() => undefined);
+          taskRef.current = null;
+        }
+        const p = await doc.getPage(page);
+        if (cancelled) return;
+        const base = p.getViewport({ scale: 1 });
+        const fit = (wrap.clientWidth - 2) / base.width;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const viewport = p.getViewport({ scale: fit * scale * dpr });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = `${Math.floor(viewport.width / dpr)}px`;
+        canvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
+        const task = p.render({ canvas, viewport } as Parameters<typeof p.render>[0]);
+        taskRef.current = task;
+        await task.promise;
+      } catch (err) {
+        const name = (err as { name?: string }).name ?? '';
+        if (!cancelled && !/Cancel/i.test(name)) {
+          console.error('[pdf-preview]', err);
+          setError('This page could not be displayed.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [doc, page, scale]);
 
   const total = doc?.numPages ?? pageCount ?? 1;
 
@@ -98,38 +108,71 @@ export function PdfPreview({ url, pageCount, title }: { url: string; pageCount: 
   }
 
   return (
-    <section aria-label={`Preview of ${title}`} className="flex flex-col gap-3 rounded-xl border bg-card p-3">
+    <section
+      aria-label={`Preview of ${title}`}
+      className="bg-card flex flex-col gap-3 rounded-xl border p-3"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon-sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} aria-label="Previous page">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            aria-label="Previous page"
+          >
             <ChevronLeft className="size-4" aria-hidden="true" />
           </Button>
           <span className="min-w-24 text-center text-sm" aria-live="polite">
             Page {page} of {total}
           </span>
-          <Button variant="outline" size="icon-sm" onClick={() => setPage((p) => Math.min(total, p + 1))} disabled={page >= total} aria-label="Next page">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => setPage((p) => Math.min(total, p + 1))}
+            disabled={page >= total}
+            aria-label="Next page"
+          >
             <ChevronRight className="size-4" aria-hidden="true" />
           </Button>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon-sm" onClick={() => setScale((s) => Math.max(0.5, +(s - 0.25).toFixed(2)))} aria-label="Zoom out">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => setScale((s) => Math.max(0.5, +(s - 0.25).toFixed(2)))}
+            aria-label="Zoom out"
+          >
             <Minus className="size-4" aria-hidden="true" />
           </Button>
           <span className="w-12 text-center text-sm">{Math.round(scale * 100)}%</span>
-          <Button variant="outline" size="icon-sm" onClick={() => setScale((s) => Math.min(3, +(s + 0.25).toFixed(2)))} aria-label="Zoom in">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            onClick={() => setScale((s) => Math.min(3, +(s + 0.25).toFixed(2)))}
+            aria-label="Zoom in"
+          >
             <Plus className="size-4" aria-hidden="true" />
           </Button>
         </div>
       </div>
-      <div ref={wrapRef} className="relative min-h-64 w-full overflow-auto rounded-md border bg-muted/50" data-testid="pdf-preview">
+      <div
+        ref={wrapRef}
+        className="bg-muted/50 relative min-h-64 w-full overflow-auto rounded-md border"
+        data-testid="pdf-preview"
+      >
         {!doc && !error ? (
-          <div className="flex aspect-[1/1.3] items-center justify-center text-sm text-muted-foreground">
+          <div className="text-muted-foreground flex aspect-[1/1.3] items-center justify-center text-sm">
             <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> Loading preview…
           </div>
         ) : null}
-        {error ? <p className="p-6 text-center text-sm text-destructive">{error}</p> : null}
-        <canvas ref={canvasRef} className={doc ? 'mx-auto block bg-white' : 'hidden'} aria-label={`Page ${page} of ${title}`} role="img" />
-        {rendering && doc ? <Loader2 className="absolute top-3 right-3 size-4 animate-spin text-muted-foreground" aria-hidden="true" /> : null}
+        {error ? <p className="text-destructive p-6 text-center text-sm">{error}</p> : null}
+        <canvas
+          ref={canvasRef}
+          className={doc ? 'mx-auto block bg-white' : 'hidden'}
+          aria-label={`Page ${page} of ${title}`}
+          role="img"
+        />
       </div>
     </section>
   );

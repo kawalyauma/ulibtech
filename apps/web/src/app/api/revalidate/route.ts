@@ -15,10 +15,21 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const body = (await req.json().catch(() => ({}))) as { tags?: unknown; paths?: unknown };
-  const tags = Array.isArray(body.tags) ? body.tags.filter((t): t is string => typeof t === 'string' && t.length <= 256).slice(0, 100) : [];
-  const paths = Array.isArray(body.paths) ? body.paths.filter((p): p is string => typeof p === 'string' && p.startsWith('/')).slice(0, 100) : [];
+  const tags = Array.isArray(body.tags)
+    ? body.tags.filter((t): t is string => typeof t === 'string' && t.length <= 256).slice(0, 100)
+    : [];
+  const paths = Array.isArray(body.paths)
+    ? body.paths
+        .filter((p): p is string => typeof p === 'string' && p.startsWith('/'))
+        .slice(0, 100)
+    : [];
   // Content was changed by an administrator: expire immediately so visitors see it at once.
   for (const tag of tags) revalidateTag(tag, { expire: 0 });
   for (const path of paths) revalidatePath(path);
-  return Response.json({ revalidated: true, tags: tags.length, paths: paths.length, now: Date.now() });
+  return Response.json({
+    revalidated: true,
+    tags: tags.length,
+    paths: paths.length,
+    now: Date.now(),
+  });
 }

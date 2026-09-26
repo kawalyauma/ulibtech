@@ -28,7 +28,8 @@ export function parse<S extends z.ZodType>(schema: S, data: unknown): z.infer<S>
 
 export async function jsonBody(c: AppContext): Promise<unknown> {
   const type = c.req.header('content-type') ?? '';
-  if (!type.includes('application/json')) throw new AppError('UNSUPPORTED_MEDIA_TYPE', 'Expected application/json');
+  if (!type.includes('application/json'))
+    throw new AppError('UNSUPPORTED_MEDIA_TYPE', 'Expected application/json');
   try {
     return await c.req.json();
   } catch {
@@ -40,7 +41,13 @@ export function query(c: AppContext): Record<string, string> {
   return c.req.query();
 }
 
-export function errorResponse(c: AppContext, code: ErrorCode, message: string, status: number, details?: unknown) {
+export function errorResponse(
+  c: AppContext,
+  code: ErrorCode,
+  message: string,
+  status: number,
+  details?: unknown,
+) {
   return c.json({ error: { code, message, ...(details ? { details } : {}) } }, status as 400);
 }
 

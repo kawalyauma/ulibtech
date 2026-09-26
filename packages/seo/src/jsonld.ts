@@ -7,7 +7,12 @@ export function breadcrumbJsonLd(crumbs: Crumb[]) {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    itemListElement: crumbs.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c.name, item: c.url })),
+    itemListElement: crumbs.map((c, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: c.name,
+      item: c.url,
+    })),
   };
 }
 
@@ -77,7 +82,12 @@ export function learningResourceJsonLd(r: LearningResourceInput) {
     ...(r.author ? { author: { '@type': 'Person', name: r.author } } : {}),
     audience: { '@type': 'EducationalAudience', educationalRole: ['student', 'teacher', 'parent'] },
     publisher: { '@type': 'Organization', name: r.publisher.name, url: r.publisher.url },
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'UGX', availability: 'https://schema.org/InStock' },
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'UGX',
+      availability: 'https://schema.org/InStock',
+    },
     encoding: {
       '@type': 'MediaObject',
       contentUrl: r.downloadUrl,
@@ -96,7 +106,12 @@ export function learningResourceJsonLd(r: LearningResourceInput) {
   };
 }
 
-export function collectionPageJsonLd(opts: { name: string; description: string; url: string; items: { name: string; url: string }[] }) {
+export function collectionPageJsonLd(opts: {
+  name: string;
+  description: string;
+  url: string;
+  items: { name: string; url: string }[];
+}) {
   return {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
@@ -106,12 +121,17 @@ export function collectionPageJsonLd(opts: { name: string; description: string; 
     mainEntity: {
       '@type': 'ItemList',
       numberOfItems: opts.items.length,
-      itemListElement: opts.items.slice(0, 30).map((it, i) => ({ '@type': 'ListItem', position: i + 1, url: it.url, name: it.name })),
+      itemListElement: opts.items
+        .slice(0, 30)
+        .map((it, i) => ({ '@type': 'ListItem', position: i + 1, url: it.url, name: it.name })),
     },
   };
 }
 
 /** Serialises JSON-LD safely for inline <script> tags (prevents </script> injection). */
 export function serializeJsonLd(data: unknown): string {
-  return JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
 }

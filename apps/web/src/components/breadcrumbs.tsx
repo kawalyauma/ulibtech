@@ -12,7 +12,7 @@ export interface Crumb {
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
   return (
     <>
-      <nav aria-label="Breadcrumb" className="mb-3 overflow-x-auto text-sm text-muted-foreground">
+      <nav aria-label="Breadcrumb" className="text-muted-foreground mb-3 overflow-x-auto text-sm">
         <ol className="flex items-center gap-1 whitespace-nowrap">
           {items.map((c, i) => {
             const last = i === items.length - 1;
@@ -20,11 +20,18 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
               <li key={`${c.path}-${i}`} className="flex items-center gap-1">
                 {i > 0 ? <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" /> : null}
                 {last ? (
-                  <span aria-current="page" className="max-w-[16rem] truncate font-medium text-foreground">
+                  <span
+                    aria-current="page"
+                    className="text-foreground max-w-[16rem] truncate font-medium"
+                  >
                     {c.name}
                   </span>
                 ) : (
-                  <Link href={c.path} className="hover:text-foreground hover:underline" prefetch={false}>
+                  <Link
+                    href={c.path}
+                    className="hover:text-foreground hover:underline"
+                    prefetch={false}
+                  >
                     {c.name}
                   </Link>
                 )}
@@ -33,7 +40,9 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
           })}
         </ol>
       </nav>
-      <JsonLd data={breadcrumbJsonLd(items.map((c) => ({ name: c.name, url: absoluteUrl(c.path) })))} />
+      <JsonLd
+        data={breadcrumbJsonLd(items.map((c) => ({ name: c.name, url: absoluteUrl(c.path) })))}
+      />
     </>
   );
 }

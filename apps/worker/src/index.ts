@@ -22,11 +22,19 @@ const ctx: ServiceContext = {
 const handlers = createHandlers(ctx);
 
 async function run(job: Job) {
-  const handler = handlers[job.name as JobName] as ((data: unknown, job: Job) => Promise<unknown>) | undefined;
+  const handler = handlers[job.name as JobName] as
+    ((data: unknown, job: Job) => Promise<unknown>) | undefined;
   if (!handler) throw new Error(`No handler for job ${job.name}`);
   const started = Date.now();
   const result = await handler(job.data, job);
-  console.log(JSON.stringify({ t: new Date().toISOString(), job: job.name, id: job.id, ms: Date.now() - started }));
+  console.log(
+    JSON.stringify({
+      t: new Date().toISOString(),
+      job: job.name,
+      id: job.id,
+      ms: Date.now() - started,
+    }),
+  );
   return result;
 }
 
@@ -45,18 +53,46 @@ const workers = Object.values(QUEUES).map(
 );
 for (const w of workers) {
   w.on('failed', (job, err) => {
-    console.error(JSON.stringify({ level: 'error', job: job?.name, id: job?.id, attempts: job?.attemptsMade, msg: err.message }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        job: job?.name,
+        id: job?.id,
+        attempts: job?.attemptsMade,
+        msg: err.message,
+      }),
+    );
   });
 }
 
 /** Repeatable maintenance schedule. */
 async function schedule() {
   const maintenance = getQueue(QUEUES.maintenance);
-  await maintenance.upsertJobScheduler('aggregate-analytics', { every: 15 * 60_000 }, { name: 'aggregate-analytics', data: { days: 2 } });
-  await maintenance.upsertJobScheduler('aggregate-analytics-daily', { pattern: '15 1 * * *' }, { name: 'aggregate-analytics', data: { days: 8 } });
-  await maintenance.upsertJobScheduler('check-files', { pattern: '30 2 * * *' }, { name: 'check-files', data: {} });
-  await maintenance.upsertJobScheduler('cleanup-temporary', { every: 6 * 3_600_000 }, { name: 'cleanup-temporary', data: { olderThanHours: 24 } });
-  await maintenance.upsertJobScheduler('refresh-sitemap', { every: 6 * 3_600_000 }, { name: 'refresh-sitemap', data: {} });
+  await maintenance.upsertJobScheduler(
+    'aggregate-analytics',
+    { every: 15 * 60_000 },
+    { name: 'aggregate-analytics', data: { days: 2 } },
+  );
+  await maintenance.upsertJobScheduler(
+    'aggregate-analytics-daily',
+    { pattern: '15 1 * * *' },
+    { name: 'aggregate-analytics', data: { days: 8 } },
+  );
+  await maintenance.upsertJobScheduler(
+    'check-files',
+    { pattern: '30 2 * * *' },
+    { name: 'check-files', data: {} },
+  );
+  await maintenance.upsertJobScheduler(
+    'cleanup-temporary',
+    { every: 6 * 3_600_000 },
+    { name: 'cleanup-temporary', data: { olderThanHours: 24 } },
+  );
+  await maintenance.upsertJobScheduler(
+    'refresh-sitemap',
+    { every: 6 * 3_600_000 },
+    { name: 'refresh-sitemap', data: {} },
+  );
 }
 
 schedule()

@@ -1,4 +1,14 @@
-import { boolean, index, pgTable, primaryKey, text, timestamp, uuid, varchar, inet } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+  varchar,
+  inet,
+} from 'drizzle-orm/pg-core';
 import { id, timestamps } from './columns';
 
 export const admins = pgTable('admins', {

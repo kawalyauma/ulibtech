@@ -16,9 +16,19 @@ export function ResourceCardSkeleton({ className }: { className?: string }) {
   );
 }
 
-export function ResourceGridSkeleton({ count = 8, className }: { count?: number; className?: string }) {
+export function ResourceGridSkeleton({
+  count = 8,
+  className,
+}: {
+  count?: number;
+  className?: string;
+}) {
   return (
-    <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-4', className)} role="status" aria-label="Loading resources">
+    <div
+      className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4', className)}
+      role="status"
+      aria-label="Loading resources"
+    >
       {Array.from({ length: count }, (_, i) => (
         <ResourceCardSkeleton key={i} />
       ))}
@@ -30,7 +40,7 @@ export function ResourceGridSkeleton({ count = 8, className }: { count?: number;
 /** Matches a horizontal search result row. */
 export function SearchResultSkeleton() {
   return (
-    <div className="flex gap-3 rounded-xl border bg-card p-3 sm:gap-4" aria-hidden="true">
+    <div className="bg-card flex gap-3 rounded-xl border p-3 sm:gap-4" aria-hidden="true">
       <Skeleton className="h-[104px] w-20 shrink-0 sm:h-[130px] sm:w-[100px]" />
       <div className="flex flex-1 flex-col gap-2 py-1">
         <Skeleton className="h-3 w-40" />
@@ -92,7 +102,11 @@ export function HomepageSectionSkeleton({ title = true }: { title?: boolean }) {
 
 export function AdminTableSkeleton({ rows = 8, columns = 5 }: { rows?: number; columns?: number }) {
   return (
-    <div className="overflow-hidden rounded-xl border bg-card" role="status" aria-label="Loading table">
+    <div
+      className="bg-card overflow-hidden rounded-xl border"
+      role="status"
+      aria-label="Loading table"
+    >
       <div className="flex gap-4 border-b p-3">
         {Array.from({ length: columns }, (_, i) => (
           <Skeleton key={i} className="h-3 flex-1" />

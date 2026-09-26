@@ -1,6 +1,13 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { and, eq, gt, lt, or, type Database } from '@edushare/database';
-import { adminRoles, adminSessions, admins, permissions, rolePermissions, roles } from '@edushare/database/schema';
+import {
+  adminRoles,
+  adminSessions,
+  admins,
+  permissions,
+  rolePermissions,
+  roles,
+} from '@edushare/database/schema';
 import type { AdminSessionInfo } from '@edushare/shared';
 
 export interface SessionConfig {
@@ -45,7 +52,10 @@ export async function createSession(
   return { token, csrfToken, expiresAt: absoluteExpiresAt };
 }
 
-export async function loadAdminAccess(db: Database, adminId: string): Promise<{ roles: string[]; permissions: string[] }> {
+export async function loadAdminAccess(
+  db: Database,
+  adminId: string,
+): Promise<{ roles: string[]; permissions: string[] }> {
   const rows = await db
     .select({ role: roles.key, permission: permissions.key })
     .from(adminRoles)
@@ -73,7 +83,11 @@ export async function validateSession(
     .from(adminSessions)
     .innerJoin(admins, eq(admins.id, adminSessions.adminId))
     .where(
-      and(eq(adminSessions.id, id), gt(adminSessions.idleExpiresAt, now), gt(adminSessions.absoluteExpiresAt, now)),
+      and(
+        eq(adminSessions.id, id),
+        gt(adminSessions.idleExpiresAt, now),
+        gt(adminSessions.absoluteExpiresAt, now),
+      ),
     )
     .limit(1);
   if (!row || !row.admin.isActive) return null;
@@ -88,7 +102,10 @@ export async function validateSession(
   if (now.getTime() - row.session.lastSeenAt.getTime() > 60_000) {
     await db
       .update(adminSessions)
-      .set({ lastSeenAt: now, idleExpiresAt: new Date(now.getTime() + config.idleMinutes * 60_000) })
+      .set({
+        lastSeenAt: now,
+        idleExpiresAt: new Date(now.getTime() + config.idleMinutes * 60_000),
+      })
       .where(eq(adminSessions.id, id));
   }
   const access = await loadAdminAccess(db, row.admin.id);

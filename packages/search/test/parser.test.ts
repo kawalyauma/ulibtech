@@ -1,10 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { buildCorrectionLexicon, buildPhraseIndex, correctQuery, parseQuery, type Vocabulary } from '../src/vocabulary';
+import {
+  buildCorrectionLexicon,
+  buildPhraseIndex,
+  correctQuery,
+  parseQuery,
+  type Vocabulary,
+} from '../src/vocabulary';
 import { editDistance, expandNumberWords, normalizeQuery } from '../src/text';
 
-const e = (slug: string, name: string, phrases: string[]) => ({ id: slug, slug, name, label: name, phrases: [name, slug, ...phrases] });
+const e = (slug: string, name: string, phrases: string[]) => ({
+  id: slug,
+  slug,
+  name,
+  label: name,
+  phrases: [name, slug, ...phrases],
+});
 const vocab: Vocabulary = {
-  classes: [e('p6', 'Primary 6', ['p6', 'primary six']), e('p7', 'Primary 7', ['p7']), e('s2', 'Senior 2', ['s2', 'senior two'])],
+  classes: [
+    e('p6', 'Primary 6', ['p6', 'primary six']),
+    e('p7', 'Primary 7', ['p7']),
+    e('s2', 'Senior 2', ['s2', 'senior two']),
+  ],
   subjects: [
     e('social-studies', 'Social Studies', ['sst', 'social']),
     e('science', 'Science', ['sci']),

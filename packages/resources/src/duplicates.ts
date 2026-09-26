@@ -12,7 +12,10 @@ export interface DuplicateCheckInput {
 }
 
 /** Finds potential duplicates. Never deletes anything — administrators decide. */
-export async function findDuplicates(db: Database, input: DuplicateCheckInput): Promise<DuplicateCandidate[]> {
+export async function findDuplicates(
+  db: Database,
+  input: DuplicateCheckInput,
+): Promise<DuplicateCandidate[]> {
   const conds = [];
   if (input.sha256) conds.push(sql`f.sha256 = ${input.sha256}`);
   if (input.title) {
@@ -21,7 +24,9 @@ export async function findDuplicates(db: Database, input: DuplicateCheckInput): 
       ${input.subjectId ? sql`AND r.subject_id IS NOT DISTINCT FROM ${input.subjectId}::uuid` : sql``})`);
   }
   if (input.sizeBytes && input.classId && input.subjectId) {
-    conds.push(sql`(f.size_bytes = ${input.sizeBytes} AND r.class_id = ${input.classId} AND r.subject_id = ${input.subjectId})`);
+    conds.push(
+      sql`(f.size_bytes = ${input.sizeBytes} AND r.class_id = ${input.classId} AND r.subject_id = ${input.subjectId})`,
+    );
   }
   if (!conds.length) return [];
   const rows = await db.execute<{

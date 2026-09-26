@@ -13,15 +13,18 @@ const optionalText = (max: number) =>
     z.string().max(max).nullable().optional(),
   );
 const stringList = z
-  .preprocess((v) => {
-    if (typeof v === 'string') {
-      return v
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-    return v;
-  }, z.array(z.string().trim().min(1).max(60)).max(40))
+  .preprocess(
+    (v) => {
+      if (typeof v === 'string') {
+        return v
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      return v;
+    },
+    z.array(z.string().trim().min(1).max(60)).max(40),
+  )
   .optional();
 
 export const paginationSchema = z.object({
@@ -82,7 +85,10 @@ export const suggestQuerySchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email: z.email().max(200).transform((e) => e.toLowerCase()),
+  email: z
+    .email()
+    .max(200)
+    .transform((e) => e.toLowerCase()),
   password: z.string().min(1).max(200),
 });
 
@@ -262,7 +268,10 @@ export const seoMetadataInputSchema = z.object({
 
 export const adminCreateSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  email: z.email().max(200).transform((e) => e.toLowerCase()),
+  email: z
+    .email()
+    .max(200)
+    .transform((e) => e.toLowerCase()),
   password: passwordSchema,
   roleKeys: z.array(z.string().max(60)).min(1),
 });

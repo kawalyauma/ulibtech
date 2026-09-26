@@ -29,7 +29,7 @@ const MAX_PDF_PAGES_FOR_TEXT = 300;
 
 function normaliseText(text: string): string {
   return text
-    .replace(/\u0000/g, '')
+    .replaceAll('\u0000', '')
     .replace(/[ \t\f\v]+/g, ' ')
     .replace(/\s*\n\s*/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -73,7 +73,10 @@ async function extractPdf(file: string): Promise<ExtractionResult> {
     verbosity: 0,
   }).promise;
   try {
-    const info = ((await doc.getMetadata().catch(() => null))?.info ?? {}) as Record<string, unknown>;
+    const info = ((await doc.getMetadata().catch(() => null))?.info ?? {}) as Record<
+      string,
+      unknown
+    >;
     const parts: string[] = [];
     let chars = 0;
     const pages = Math.min(doc.numPages, MAX_PDF_PAGES_FOR_TEXT);
@@ -108,10 +111,17 @@ async function extractPdf(file: string): Promise<ExtractionResult> {
 
 async function extractDocx(file: string): Promise<ExtractionResult> {
   const buffer = await fs.readFile(file);
-  const [{ value }, zip] = await Promise.all([mammoth.extractRawText({ buffer }), JSZip.loadAsync(buffer)]);
+  const [{ value }, zip] = await Promise.all([
+    mammoth.extractRawText({ buffer }),
+    JSZip.loadAsync(buffer),
+  ]);
   const app = await zip.file('docProps/app.xml')?.async('string');
   const pages = app ? Number(/<Pages>(\d+)<\/Pages>/.exec(app)?.[1]) : NaN;
-  return { text: normaliseText(value), pageCount: Number.isFinite(pages) && pages > 0 ? pages : null, metadata: await officeCoreProps(zip) };
+  return {
+    text: normaliseText(value),
+    pageCount: Number.isFinite(pages) && pages > 0 ? pages : null,
+    metadata: await officeCoreProps(zip),
+  };
 }
 
 async function extractPptx(file: string): Promise<ExtractionResult> {
@@ -122,10 +132,16 @@ async function extractPptx(file: string): Promise<ExtractionResult> {
   const texts: string[] = [];
   for (const name of slides) {
     const xml = (await zip.file(name)?.async('string')) ?? '';
-    const runs = [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map((m) => decodeXmlEntities(m[1] ?? ''));
+    const runs = [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map((m) =>
+      decodeXmlEntities(m[1] ?? ''),
+    );
     texts.push(runs.join(' '));
   }
-  return { text: normaliseText(texts.join('\n')), pageCount: slides.length || null, metadata: await officeCoreProps(zip) };
+  return {
+    text: normaliseText(texts.join('\n')),
+    pageCount: slides.length || null,
+    metadata: await officeCoreProps(zip),
+  };
 }
 
 async function extractOdt(file: string): Promise<ExtractionResult> {
@@ -136,7 +152,11 @@ async function extractOdt(file: string): Promise<ExtractionResult> {
 }
 
 async function extractSpreadsheet(file: string): Promise<ExtractionResult> {
-  const wb = XLSX.read(await fs.readFile(file), { type: 'buffer', cellFormula: false, cellHTML: false });
+  const wb = XLSX.read(await fs.readFile(file), {
+    type: 'buffer',
+    cellFormula: false,
+    cellHTML: false,
+  });
   const parts = wb.SheetNames.map((name) => {
     const sheet = wb.Sheets[name];
     return sheet ? `${name}\n${XLSX.utils.sheet_to_csv(sheet, { blankrows: false })}` : name;
@@ -155,7 +175,10 @@ async function extractImage(file: string): Promise<ExtractionResult> {
 }
 
 /** Extracts searchable text and metadata. Never performs OCR. */
-export async function extractDocument(file: string, kind: AllowedFileKind): Promise<ExtractionResult> {
+export async function extractDocument(
+  file: string,
+  kind: AllowedFileKind,
+): Promise<ExtractionResult> {
   switch (kind) {
     case 'pdf':
       return extractPdf(file);
@@ -173,7 +196,11 @@ export async function extractDocument(file: string, kind: AllowedFileKind): Prom
     case 'webp':
       return extractImage(file);
     case 'txt':
-      return { text: normaliseText(await fs.readFile(file, 'utf8')), pageCount: null, metadata: {} };
+      return {
+        text: normaliseText(await fs.readFile(file, 'utf8')),
+        pageCount: null,
+        metadata: {},
+      };
     case 'doc':
     case 'ppt':
       // Legacy binary formats: metadata only; text extraction can be added via a converter later.

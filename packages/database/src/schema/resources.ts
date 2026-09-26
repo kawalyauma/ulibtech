@@ -161,7 +161,10 @@ export const resourceFiles = pgTable(
     uploadedById: uuid('uploaded_by_id').references(() => admins.id, { onDelete: 'set null' }),
     ...timestamps,
   },
-  (t) => [index('resource_files_resource_idx').on(t.resourceId), index('resource_files_sha_idx').on(t.sha256)],
+  (t) => [
+    index('resource_files_resource_idx').on(t.resourceId),
+    index('resource_files_sha_idx').on(t.sha256),
+  ],
 );
 
 export const resourceVersions = pgTable(
@@ -192,7 +195,10 @@ export const resourceTags = pgTable(
       .notNull()
       .references(() => tags.id, { onDelete: 'cascade' }),
   },
-  (t) => [primaryKey({ columns: [t.resourceId, t.tagId] }), index('resource_tags_tag_idx').on(t.tagId)],
+  (t) => [
+    primaryKey({ columns: [t.resourceId, t.tagId] }),
+    index('resource_tags_tag_idx').on(t.tagId),
+  ],
 );
 
 export const collections = pgTable('collections', {

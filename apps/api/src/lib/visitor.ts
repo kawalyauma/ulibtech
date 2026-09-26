@@ -1,4 +1,10 @@
-import { deviceType, isBot, referrerHost, visitorHash, type VisitorMeta } from '@edushare/analytics';
+import {
+  deviceType,
+  isBot,
+  referrerHost,
+  visitorHash,
+  type VisitorMeta,
+} from '@edushare/analytics';
 import { getServerEnv } from '@edushare/shared';
 import { clientIp, type AppContext } from './http';
 

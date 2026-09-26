@@ -1,4 +1,10 @@
-export const RESOURCE_STATUSES = ['draft', 'review', 'published', 'unpublished', 'archived'] as const;
+export const RESOURCE_STATUSES = [
+  'draft',
+  'review',
+  'published',
+  'unpublished',
+  'archived',
+] as const;
 export type ResourceStatus = (typeof RESOURCE_STATUSES)[number];
 
 export const PROCESSING_STATUSES = ['pending', 'processing', 'ready', 'failed'] as const;

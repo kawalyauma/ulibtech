@@ -1,0 +1,16 @@
+# Local development dependencies only (apps run with `pnpm dev`).
+#   docker compose -f docker-compose.dev.yml up -d
+name: edushare-dev
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: edushare, POSTGRES_PASSWORD: edushare, POSTGRES_DB: edushare }
+    ports: ['5432:5432']
+    volumes:
+      - devpg:/var/lib/postgresql/data
+      - ./docker/dev-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  redis:
+    image: redis:7-alpine
+    ports: ['6379:6379']
+volumes:
+  devpg:

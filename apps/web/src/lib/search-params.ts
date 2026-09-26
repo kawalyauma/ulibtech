@@ -1,5 +1,17 @@
 /** Filter keys accepted by the public search/listing API. */
-export const FILTER_KEYS = ['class', 'subject', 'type', 'year', 'term', 'fileType', 'topic', 'curriculum', 'level', 'collection', 'featured'] as const;
+export const FILTER_KEYS = [
+  'class',
+  'subject',
+  'type',
+  'year',
+  'term',
+  'fileType',
+  'topic',
+  'curriculum',
+  'level',
+  'collection',
+  'featured',
+] as const;
 export type FilterKey = (typeof FILTER_KEYS)[number];
 
 export type RawSearchParams = Record<string, string | string[] | undefined>;
@@ -9,7 +21,10 @@ export function first(v: string | string[] | undefined): string | undefined {
 }
 
 /** Normalises Next.js searchParams into a URLSearchParams for the API. */
-export function toApiParams(sp: RawSearchParams, extra: Record<string, string> = {}): URLSearchParams {
+export function toApiParams(
+  sp: RawSearchParams,
+  extra: Record<string, string> = {},
+): URLSearchParams {
   const out = new URLSearchParams();
   const q = first(sp.q);
   if (q) out.set('q', q.slice(0, 200));

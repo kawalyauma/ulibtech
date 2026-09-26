@@ -19,5 +19,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ name: s
       image: u.image ? absoluteUrl(u.image) : null,
     })),
   );
-  return new Response(xml, { headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600' } });
+  return new Response(xml, {
+    headers: {
+      'content-type': 'application/xml; charset=utf-8',
+      'cache-control': 'public, max-age=3600',
+    },
+  });
 }

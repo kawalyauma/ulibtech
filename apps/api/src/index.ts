@@ -14,7 +14,8 @@ const server = serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => 
 });
 
 // Uploads can be slow on poor connections.
-if ('requestTimeout' in server) (server as unknown as { requestTimeout: number }).requestTimeout = 30 * 60 * 1000;
+if ('requestTimeout' in server)
+  (server as unknown as { requestTimeout: number }).requestTimeout = 30 * 60 * 1000;
 
 let shuttingDown = false;
 async function shutdown(signal: string) {

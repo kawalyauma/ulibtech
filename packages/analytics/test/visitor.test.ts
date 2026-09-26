@@ -9,7 +9,9 @@ describe('visitor helpers', () => {
     expect(isBot(undefined)).toBe(true);
   });
   it('classifies devices', () => {
-    expect(deviceType('Mozilla/5.0 (Linux; Android 13; SM-A135F) AppleWebKit Mobile Safari')).toBe('mobile');
+    expect(deviceType('Mozilla/5.0 (Linux; Android 13; SM-A135F) AppleWebKit Mobile Safari')).toBe(
+      'mobile',
+    );
     expect(deviceType('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120')).toBe('desktop');
   });
   it('rotates hashes daily and hides the IP', () => {

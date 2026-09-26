@@ -38,7 +38,13 @@ export function loadVocabulary(db: Database): Promise<Vocabulary> {
         .innerJoin(classes, eq(classes.id, classSubjects.classId))
         .innerJoin(subjects, eq(subjects.id, classSubjects.subjectId)),
     ]);
-    const entry = (id: string, slug: string, name: string, label: string, phrases: (string | null | undefined)[]): VocabEntry => ({
+    const entry = (
+      id: string,
+      slug: string,
+      name: string,
+      label: string,
+      phrases: (string | null | undefined)[],
+    ): VocabEntry => ({
       id,
       slug,
       name,
@@ -48,12 +54,34 @@ export function loadVocabulary(db: Database): Promise<Vocabulary> {
     const classSubjectsMap: Record<string, string[]> = {};
     for (const row of cs) (classSubjectsMap[row.classSlug] ??= []).push(row.subjectSlug);
     return {
-      classes: cls.map((c) => ({ ...entry(c.id, c.slug, c.name, c.shortName ?? c.name, [c.slug, c.name, c.shortName, ...c.aliases]), parentId: c.levelId })),
-      subjects: subs.map((s) => entry(s.id, s.slug, s.name, s.name, [s.name, s.slug.replace(/-/g, ' '), s.shortName, ...s.aliases])),
-      types: types.map((t) =>
-        entry(t.id, t.slug, t.name, t.pluralName, [t.name, t.pluralName, t.slug.replace(/-/g, ' '), ...t.aliases]),
+      classes: cls.map((c) => ({
+        ...entry(c.id, c.slug, c.name, c.shortName ?? c.name, [
+          c.slug,
+          c.name,
+          c.shortName,
+          ...c.aliases,
+        ]),
+        parentId: c.levelId,
+      })),
+      subjects: subs.map((s) =>
+        entry(s.id, s.slug, s.name, s.name, [
+          s.name,
+          s.slug.replace(/-/g, ' '),
+          s.shortName,
+          ...s.aliases,
+        ]),
       ),
-      terms: trms.map((t) => entry(t.id, t.slug, t.name, t.name, [t.name, t.slug.replace(/-/g, ' ')])),
+      types: types.map((t) =>
+        entry(t.id, t.slug, t.name, t.pluralName, [
+          t.name,
+          t.pluralName,
+          t.slug.replace(/-/g, ' '),
+          ...t.aliases,
+        ]),
+      ),
+      terms: trms.map((t) =>
+        entry(t.id, t.slug, t.name, t.name, [t.name, t.slug.replace(/-/g, ' ')]),
+      ),
       levels: lvls.map((l) => entry(l.id, l.slug, l.name, l.name, [l.name])),
       years: yrs.map((y) => ({ id: y.id, year: y.year })),
       curricula: curs.map((c) => entry(c.id, c.slug, c.name, c.name, [c.name])),

@@ -12,7 +12,12 @@ import { visitorMeta } from '../lib/visitor';
 import { limiter } from '../middleware/rate-limit';
 import type { Services } from '../services';
 
-const MEDIA_TYPES: Record<string, string> = { webp: 'image/webp', avif: 'image/avif', png: 'image/png', jpg: 'image/jpeg' };
+const MEDIA_TYPES: Record<string, string> = {
+  webp: 'image/webp',
+  avif: 'image/avif',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+};
 
 function contentDisposition(kind: 'attachment' | 'inline', name: string): string {
   const ascii = safeDownloadName(name);
@@ -23,10 +28,31 @@ async function loadFile(services: Services, slug: string) {
   const row = await services.ctx.db.query.resources.findFirst({
     where: eq(resources.slug, slug),
     columns: { id: true, slug: true, title: true, status: true, fileId: true },
-    with: { file: { columns: { id: true, storageKey: true, mimeType: true, extension: true, kind: true, sizeBytes: true, isMissing: true, scanStatus: true, updatedAt: true } } },
+    with: {
+      file: {
+        columns: {
+          id: true,
+          storageKey: true,
+          mimeType: true,
+          extension: true,
+          kind: true,
+          sizeBytes: true,
+          isMissing: true,
+          scanStatus: true,
+          updatedAt: true,
+        },
+      },
+    },
   });
   // Only published, scanned files are ever served publicly.
-  if (!row || row.status !== 'published' || !row.file || row.file.scanStatus === 'infected' || row.file.scanStatus === 'pending') return null;
+  if (
+    !row ||
+    row.status !== 'published' ||
+    !row.file ||
+    row.file.scanStatus === 'infected' ||
+    row.file.scanStatus === 'pending'
+  )
+    return null;
   return row as typeof row & { file: NonNullable<typeof row.file> };
 }
 
@@ -85,21 +111,33 @@ export function fileRoutes(services: Services) {
   const site = services.env.PUBLIC_SITE_URL.replace(/\/$/, '');
 
   // Downloads: generous limits keyed by IP + user agent so shared school networks are not blocked.
-  const perVisitor = limiter(services.redis, 'download', 60, 600, (c) => `${clientIp(c)}|${c.req.header('user-agent') ?? ''}`);
+  const perVisitor = limiter(
+    services.redis,
+    'download',
+    60,
+    600,
+    (c) => `${clientIp(c)}|${c.req.header('user-agent') ?? ''}`,
+  );
   const perIp = limiter(services.redis, 'download-ip', 1000, 3600);
 
   const download = async (c: AppContext, head: boolean) => {
     const slug = c.req.param('slug') ?? '';
     const row = await loadFile(services, slug);
     if (!row) return c.redirect(`${site}/resources/${encodeURIComponent(slug)}`, 302);
-    if (row.file.isMissing) return c.redirect(`${site}/resources/${encodeURIComponent(slug)}?file=missing`, 302);
+    if (row.file.isMissing)
+      return c.redirect(`${site}/resources/${encodeURIComponent(slug)}?file=missing`, 302);
     const name = `${row.title}.${row.file.extension}`;
     try {
       const range = c.req.header('range');
       // Count the download once per request, ignoring HEAD and resumed (mid-file) range requests.
       const isResume = range && !/^bytes=0-/.test(range);
       if (!head && !isResume) {
-        await recordDownload({ db: services.db, redis: services.redis }, row.id, row.file.id, visitorMeta(c)).catch((err: unknown) => {
+        await recordDownload(
+          { db: services.db, redis: services.redis },
+          row.id,
+          row.file.id,
+          visitorMeta(c),
+        ).catch((err: unknown) => {
           console.error('[download] tracking failed', (err as Error).message);
         });
       }
@@ -117,7 +155,9 @@ export function fileRoutes(services: Services) {
       );
     } catch (err) {
       if (err instanceof StorageNotFoundError) {
-        await services.ctx.db.execute(sql`UPDATE resource_files SET is_missing = true, last_checked_at = now() WHERE id = ${row.file.id}`);
+        await services.ctx.db.execute(
+          sql`UPDATE resource_files SET is_missing = true, last_checked_at = now() WHERE id = ${row.file.id}`,
+        );
         return c.redirect(`${site}/resources/${encodeURIComponent(slug)}?file=missing`, 302);
       }
       throw err;
@@ -131,7 +171,8 @@ export function fileRoutes(services: Services) {
   app.get('/api/files/:slug/preview', limiter(services.redis, 'preview', 600, 600), async (c) => {
     const row = await loadFile(services, c.req.param('slug'));
     if (!row || row.file.isMissing) throw AppError.notFound('File');
-    if (!isPreviewable(row.file.kind as AllowedFileKind)) throw new AppError('BAD_REQUEST', 'Preview is not available for this file type');
+    if (!isPreviewable(row.file.kind as AllowedFileKind))
+      throw new AppError('BAD_REQUEST', 'Preview is not available for this file type');
     try {
       return await sendFile(c, services, row.file.storageKey, {
         'Content-Type': row.file.mimeType,
@@ -140,7 +181,8 @@ export function fileRoutes(services: Services) {
         'X-Robots-Tag': 'noindex',
       });
     } catch (err) {
-      if (err instanceof StorageNotFoundError) throw new AppError('FILE_MISSING', 'The file is currently unavailable');
+      if (err instanceof StorageNotFoundError)
+        throw new AppError('FILE_MISSING', 'The file is currently unavailable');
       throw err;
     }
   });

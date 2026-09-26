@@ -42,7 +42,12 @@ export function createApp(services: Services) {
   app.use('/api/*', async (c, next) => {
     const type = c.req.header('content-type') ?? '';
     if (type.startsWith('multipart/form-data')) return next();
-    return bodyLimit({ maxSize: 256 * 1024, onError: () => { throw new AppError('PAYLOAD_TOO_LARGE', 'Request body too large'); } })(c, next);
+    return bodyLimit({
+      maxSize: 256 * 1024,
+      onError: () => {
+        throw new AppError('PAYLOAD_TOO_LARGE', 'Request body too large');
+      },
+    })(c, next);
   });
 
   app.route('/', fileRoutes(services));
@@ -55,10 +60,16 @@ export function createApp(services: Services) {
     c.header('X-Robots-Tag', 'noindex, nofollow');
   });
   admin.route('/auth', authRoutes(services));
-  admin.use('*', async (c, next) => (c.req.path.startsWith('/api/admin/auth/') ? next() : requireAdmin(services)(c, next)));
-  admin.use('*', async (c, next) => (c.req.path.startsWith('/api/admin/auth/') ? next() : csrfProtection(services)(c, next)));
   admin.use('*', async (c, next) =>
-    c.req.path.startsWith('/api/admin/auth/') ? next() : limiter(services.redis, 'admin', 600, 60, (cc) => cc.get('admin')?.id ?? 'anon')(c, next),
+    c.req.path.startsWith('/api/admin/auth/') ? next() : requireAdmin(services)(c, next),
+  );
+  admin.use('*', async (c, next) =>
+    c.req.path.startsWith('/api/admin/auth/') ? next() : csrfProtection(services)(c, next),
+  );
+  admin.use('*', async (c, next) =>
+    c.req.path.startsWith('/api/admin/auth/')
+      ? next()
+      : limiter(services.redis, 'admin', 600, 60, (cc) => cc.get('admin')?.id ?? 'anon')(c, next),
   );
   admin.route('/resources', adminResourceRoutes(services));
   admin.route('/', adminMiscRoutes(services));
@@ -70,16 +81,39 @@ export function createApp(services: Services) {
 
   app.onError((err, c) => {
     if (isAppError(err)) {
-      return c.json({ error: { code: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) } }, err.status as 400);
+      return c.json(
+        {
+          error: {
+            code: err.code,
+            message: err.message,
+            ...(err.details ? { details: err.details } : {}),
+          },
+        },
+        err.status as 400,
+      );
     }
     if (err instanceof StorageKeyError) {
       return c.json({ error: { code: 'BAD_REQUEST', message: 'Invalid file path' } }, 400);
     }
     const pgCode = (err as { code?: string }).code;
-    if (pgCode === '22P02') return c.json({ error: { code: 'BAD_REQUEST', message: 'Invalid identifier' } }, 400);
-    console.error(JSON.stringify({ level: 'error', id: c.get('requestId'), path: c.req.path, msg: err.message, stack: err.stack }));
+    if (pgCode === '22P02')
+      return c.json({ error: { code: 'BAD_REQUEST', message: 'Invalid identifier' } }, 400);
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        id: c.get('requestId'),
+        path: c.req.path,
+        msg: err.message,
+        stack: err.stack,
+      }),
+    );
     // Never expose internal error details to clients.
-    return c.json({ error: { code: 'INTERNAL', message: 'Something went wrong on our side. Please try again.' } }, 500);
+    return c.json(
+      {
+        error: { code: 'INTERNAL', message: 'Something went wrong on our side. Please try again.' },
+      },
+      500,
+    );
   });
 
   return app;

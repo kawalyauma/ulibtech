@@ -30,13 +30,21 @@ export interface ParsedQuery {
   normalized: string;
   /** Free-text tokens that were not recognised as entities. */
   terms: string[];
-  entities: { class?: VocabEntry; subject?: VocabEntry; type?: VocabEntry; term?: VocabEntry; year?: number };
+  entities: {
+    class?: VocabEntry;
+    subject?: VocabEntry;
+    type?: VocabEntry;
+    term?: VocabEntry;
+    year?: number;
+  };
   /** Tokens consumed by entities (kept for "any" mode). */
   entityTokens: string[];
   advanced: boolean;
 }
 
-export function buildPhraseIndex(v: Vocabulary): Map<string, { kind: EntityKind; entry: VocabEntry }> {
+export function buildPhraseIndex(
+  v: Vocabulary,
+): Map<string, { kind: EntityKind; entry: VocabEntry }> {
   const map = new Map<string, { kind: EntityKind; entry: VocabEntry }>();
   const add = (kind: EntityKind, list: VocabEntry[]) => {
     for (const entry of list) {

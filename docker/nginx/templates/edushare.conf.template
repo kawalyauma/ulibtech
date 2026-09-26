@@ -1,0 +1,154 @@
+# Rendered by the nginx image's envsubst from ${PUBLIC_DOMAIN} and ${ADMIN_DOMAIN}.
+
+upstream web   { server web:3000;   keepalive 32; }
+upstream admin { server admin:3001; keepalive 8; }
+upstream api   { server api:4000;   keepalive 32; }
+
+# ---------------------------------------------------------------- HTTP → HTTPS
+server {
+  listen 80;
+  # listen [::]:80;   # enable when the host has IPv6
+  server_name ${PUBLIC_DOMAIN} ${ADMIN_DOMAIN};
+  location /.well-known/acme-challenge/ { root /var/www/certbot; }
+  location / { return 301 https://$host$request_uri; }
+}
+
+# ---------------------------------------------------------------- public site
+server {
+  listen 443 ssl;
+  # listen [::]:443 ssl;
+  http2 on;
+  server_name ${PUBLIC_DOMAIN};
+
+  ssl_certificate     /etc/nginx/certs/${PUBLIC_DOMAIN}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/certs/${PUBLIC_DOMAIN}/privkey.pem;
+  include /etc/nginx/snippets/tls.conf;
+  include /etc/nginx/snippets/security-headers.conf;
+
+  client_max_body_size 1m;
+  limit_conn perip 40;
+
+  proxy_http_version 1.1;
+  proxy_set_header Connection "";
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+
+  # Thumbnails: served straight from disk, cached forever (keys are unique per file).
+  location /media/thumbnails/ {
+    alias /opt/edushare/storage/thumbnails/;
+    expires 1y;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    include /etc/nginx/snippets/security-headers.conf;
+    try_files $uri =404;
+  }
+
+  # Internal location used by the API's X-Accel-Redirect for downloads & previews.
+  location /_protected/ {
+    internal;
+    alias /opt/edushare/storage/;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Content-Security-Policy "default-src 'none'; sandbox" always;
+  }
+
+  # Free downloads: tracked and validated by the API, bytes streamed by Nginx.
+  location /download/ {
+    limit_req zone=downloads burst=20 nodelay;
+    rewrite ^/download/(.*)$ /api/download/$1 break;
+    proxy_pass http://api;
+  }
+
+  location /api/revalidate { return 404; }
+
+  location /api/ {
+    limit_req zone=api burst=60 nodelay;
+    proxy_pass http://api;
+    # Cache public GET responses briefly; the API sets Cache-Control (s-maxage).
+    proxy_cache edushare;
+    proxy_cache_methods GET HEAD;
+    proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+    proxy_cache_background_update on;
+    proxy_cache_lock on;
+    add_header X-Cache $upstream_cache_status;
+    include /etc/nginx/snippets/security-headers.conf; # add_header in a location drops server-level headers
+  }
+  location /api/admin/ { return 404; }
+
+  location /_next/static/ {
+    proxy_pass http://web;
+    proxy_cache edushare;
+    proxy_cache_valid 200 30d;
+    expires 1y;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    include /etc/nginx/snippets/security-headers.conf;
+  }
+
+  location / {
+    limit_req zone=pages burst=40 nodelay;
+    proxy_pass http://web;
+    proxy_cache edushare;
+    proxy_cache_valid 200 30s;
+    proxy_cache_bypass $http_rsc $http_next_router_state_tree;
+    proxy_no_cache $http_rsc $http_next_router_state_tree;
+    proxy_cache_key "$scheme$host$request_uri$http_rsc";
+    proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+    proxy_cache_background_update on;
+    proxy_cache_lock on;
+    add_header X-Cache $upstream_cache_status;
+    include /etc/nginx/snippets/security-headers.conf; # add_header in a location drops server-level headers
+  }
+}
+
+# ---------------------------------------------------------------- admin dashboard
+server {
+  listen 443 ssl;
+  # listen [::]:443 ssl;
+  http2 on;
+  server_name ${ADMIN_DOMAIN};
+
+  ssl_certificate     /etc/nginx/certs/${ADMIN_DOMAIN}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/certs/${ADMIN_DOMAIN}/privkey.pem;
+  include /etc/nginx/snippets/tls.conf;
+  include /etc/nginx/snippets/security-headers.conf;
+  add_header X-Robots-Tag "noindex, nofollow" always;
+
+  # Optional: restrict the dashboard to known networks.
+  # allow 203.0.113.0/24; deny all;
+
+  proxy_http_version 1.1;
+  proxy_set_header Connection "";
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_cache off;
+
+  location /media/thumbnails/ {
+    alias /opt/edushare/storage/thumbnails/;
+    try_files $uri =404;
+  }
+
+  location = /api/admin/auth/login {
+    limit_req zone=login burst=5 nodelay;
+    proxy_pass http://api;
+  }
+
+  # Large uploads are streamed to the API (no buffering) with generous limits.
+  location /api/admin/resources {
+    client_max_body_size 2g;
+    proxy_request_buffering off;
+    proxy_read_timeout 1800s;
+    proxy_send_timeout 1800s;
+    proxy_pass http://api;
+  }
+
+  location /api/ {
+    client_max_body_size 1m;
+    proxy_pass http://api;
+  }
+
+  location / {
+    proxy_pass http://admin;
+  }
+}

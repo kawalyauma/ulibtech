@@ -25,7 +25,12 @@ export function landingMetadata(data: LandingResult, page: number): Metadata {
     description: l.description,
     alternates: { canonical },
     robots: l.noindex ? { index: false, follow: true } : undefined,
-    openGraph: { title: l.heading, description: l.description, url: absoluteUrl(canonical), type: 'website' },
+    openGraph: {
+      title: l.heading,
+      description: l.description,
+      url: absoluteUrl(canonical),
+      type: 'website',
+    },
   };
 }
 
@@ -46,7 +51,9 @@ export function LandingView({
   const hide = Object.entries(landing.filters)
     .filter(([, v]) => v !== undefined && v !== null)
     .map(([k]) => k);
-  const qs = new URLSearchParams(Object.entries(values).filter((e): e is [string, string] => Boolean(e[1])));
+  const qs = new URLSearchParams(
+    Object.entries(values).filter((e): e is [string, string] => Boolean(e[1])),
+  );
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:py-8">
       <Breadcrumbs items={landing.breadcrumbs} />
@@ -55,26 +62,38 @@ export function LandingView({
           name: landing.heading,
           description: landing.description,
           url: absoluteUrl(landing.path),
-          items: resources.items.map((r) => ({ name: r.title, url: absoluteUrl(`/resources/${r.slug}`) })),
+          items: resources.items.map((r) => ({
+            name: r.title,
+            url: absoluteUrl(`/resources/${r.slug}`),
+          })),
         })}
       />
       <header className="mb-6 flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{landing.heading}</h1>
-        <p className="max-w-3xl text-muted-foreground">{landing.intro}</p>
+        <p className="text-muted-foreground max-w-3xl">{landing.intro}</p>
         <p className="text-sm font-medium">{pluralize(resources.total, 'free resource')}</p>
       </header>
       {extra}
       <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="flex flex-col gap-6">
-          <FilterForm action={landing.path} values={values} taxonomy={taxonomy} facets={resources.facets} hide={hide} sortOptions={LANDING_SORTS} />
+          <FilterForm
+            action={landing.path}
+            values={values}
+            taxonomy={taxonomy}
+            facets={resources.facets}
+            hide={hide}
+            sortOptions={LANDING_SORTS}
+          />
         </aside>
         <div className="min-w-0">
           {resources.items.length ? (
             <ResourceGrid items={resources.items} priorityCount={2} />
           ) : (
-            <div className="rounded-xl border bg-card p-8 text-center">
+            <div className="bg-card rounded-xl border p-8 text-center">
               <p className="font-semibold">No resources here yet.</p>
-              <p className="mt-1 text-sm text-muted-foreground">New resources are added regularly. Try a related page below or search the library.</p>
+              <p className="text-muted-foreground mt-1 text-sm">
+                New resources are added regularly. Try a related page below or search the library.
+              </p>
             </div>
           )}
           <Pagination

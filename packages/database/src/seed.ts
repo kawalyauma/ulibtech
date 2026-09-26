@@ -51,7 +51,10 @@ export async function seedDatabase(db: Database): Promise<void> {
       const [row] = await tx
         .insert(s.schoolLevels)
         .values(level)
-        .onConflictDoUpdate({ target: s.schoolLevels.slug, set: { name: level.name, sortOrder: level.sortOrder } })
+        .onConflictDoUpdate({
+          target: s.schoolLevels.slug,
+          set: { name: level.name, sortOrder: level.sortOrder },
+        })
         .returning();
       if (row) levelIds.set(level.slug, row.id);
     }
@@ -61,7 +64,14 @@ export async function seedDatabase(db: Database): Promise<void> {
       if (!levelId) continue;
       const [row] = await tx
         .insert(s.classes)
-        .values({ name: c.name, shortName: c.shortName, slug: c.slug, levelId, aliases: c.aliases, sortOrder: i + 1 })
+        .values({
+          name: c.name,
+          shortName: c.shortName,
+          slug: c.slug,
+          levelId,
+          aliases: c.aliases,
+          sortOrder: i + 1,
+        })
         .onConflictDoUpdate({
           target: s.classes.slug,
           set: { aliases: c.aliases, shortName: c.shortName, sortOrder: i + 1 },
@@ -74,7 +84,13 @@ export async function seedDatabase(db: Database): Promise<void> {
     for (const [i, subj] of SUBJECTS.entries()) {
       const [row] = await tx
         .insert(s.subjects)
-        .values({ name: subj.name, slug: subj.slug, shortName: subj.shortName ?? null, aliases: subj.aliases, sortOrder: i + 1 })
+        .values({
+          name: subj.name,
+          slug: subj.slug,
+          shortName: subj.shortName ?? null,
+          aliases: subj.aliases,
+          sortOrder: i + 1,
+        })
         .onConflictDoUpdate({ target: s.subjects.slug, set: { aliases: subj.aliases } })
         .returning();
       if (row) subjectIds.set(subj.slug, row.id);
@@ -100,13 +116,22 @@ export async function seedDatabase(db: Database): Promise<void> {
       await tx.insert(s.terms).values(term).onConflictDoNothing();
     }
     for (const year of YEARS) {
-      await tx.insert(s.academicYears).values({ year, label: String(year) }).onConflictDoNothing();
+      await tx
+        .insert(s.academicYears)
+        .values({ year, label: String(year) })
+        .onConflictDoNothing();
     }
     for (const c of CURRICULA) {
       await tx.insert(s.curricula).values(c).onConflictDoNothing();
     }
 
-    await tx.insert(s.siteSettings).values({ key: 'site', value: DEFAULT_SITE_SETTINGS }).onConflictDoNothing();
-    await tx.insert(s.siteSettings).values({ key: 'homepage', value: DEFAULT_HOMEPAGE_SETTINGS }).onConflictDoNothing();
+    await tx
+      .insert(s.siteSettings)
+      .values({ key: 'site', value: DEFAULT_SITE_SETTINGS })
+      .onConflictDoNothing();
+    await tx
+      .insert(s.siteSettings)
+      .values({ key: 'homepage', value: DEFAULT_HOMEPAGE_SETTINGS })
+      .onConflictDoNothing();
   });
 }

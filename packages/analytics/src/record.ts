@@ -22,9 +22,17 @@ export interface AnalyticsDeps {
 }
 
 /** Records a resource page view (deduplicated per visitor for 30 minutes). */
-export async function recordView(deps: AnalyticsDeps, resourceId: string, meta: VisitorMeta): Promise<boolean> {
+export async function recordView(
+  deps: AnalyticsDeps,
+  resourceId: string,
+  meta: VisitorMeta,
+): Promise<boolean> {
   if (meta.bot) return false;
-  const fresh = await firstSeen(deps.redis, `view:${resourceId}:${meta.visitorHash ?? 'anon'}`, 1800);
+  const fresh = await firstSeen(
+    deps.redis,
+    `view:${resourceId}:${meta.visitorHash ?? 'anon'}`,
+    1800,
+  );
   if (!fresh) return false;
   await deps.db.transaction(async (tx) => {
     await tx.insert(resourceViews).values({
@@ -33,7 +41,9 @@ export async function recordView(deps: AnalyticsDeps, resourceId: string, meta: 
       deviceType: meta.deviceType,
       referrerHost: meta.referrerHost,
     });
-    await tx.execute(sql`UPDATE resources SET view_count = view_count + 1 WHERE id = ${resourceId}`);
+    await tx.execute(
+      sql`UPDATE resources SET view_count = view_count + 1 WHERE id = ${resourceId}`,
+    );
   });
   await bumpPopularity(deps.redis, 'view', resourceId);
   return true;
@@ -57,7 +67,9 @@ export async function recordDownload(
       deviceType: meta.deviceType,
       referrerHost: meta.referrerHost,
     });
-    await tx.execute(sql`UPDATE resources SET download_count = download_count + 1 WHERE id = ${resourceId}`);
+    await tx.execute(
+      sql`UPDATE resources SET download_count = download_count + 1 WHERE id = ${resourceId}`,
+    );
   });
   await bumpPopularity(deps.redis, 'download', resourceId);
   return true;
@@ -70,7 +82,11 @@ export async function recordShare(
   meta: VisitorMeta,
 ): Promise<boolean> {
   if (meta.bot) return false;
-  const fresh = await firstSeen(deps.redis, `share:${resourceId}:${channel}:${meta.visitorHash ?? 'anon'}`, 60);
+  const fresh = await firstSeen(
+    deps.redis,
+    `share:${resourceId}:${channel}:${meta.visitorHash ?? 'anon'}`,
+    60,
+  );
   if (!fresh) return false;
   await deps.db.transaction(async (tx) => {
     await tx.insert(resourceShares).values({
@@ -80,7 +96,9 @@ export async function recordShare(
       deviceType: meta.deviceType,
       referrerHost: meta.referrerHost,
     });
-    await tx.execute(sql`UPDATE resources SET share_count = share_count + 1 WHERE id = ${resourceId}`);
+    await tx.execute(
+      sql`UPDATE resources SET share_count = share_count + 1 WHERE id = ${resourceId}`,
+    );
   });
   await bumpPopularity(deps.redis, 'share', resourceId);
   return true;
@@ -89,13 +107,22 @@ export async function recordShare(
 /** Stores a search query. The same query from the same visitor is only logged once per 5 minutes. */
 export async function recordSearch(
   deps: AnalyticsDeps,
-  input: { query: string; normalized: string; resultsCount: number; filters: Record<string, unknown> },
+  input: {
+    query: string;
+    normalized: string;
+    resultsCount: number;
+    filters: Record<string, unknown>;
+  },
   meta: VisitorMeta,
 ): Promise<boolean> {
   if (meta.bot) return false;
   const query = input.query.trim().slice(0, 200);
   if (!query && Object.keys(input.filters).length === 0) return false;
-  const fresh = await firstSeen(deps.redis, `search:${meta.visitorHash ?? 'anon'}:${input.normalized}:${JSON.stringify(input.filters)}`, 300);
+  const fresh = await firstSeen(
+    deps.redis,
+    `search:${meta.visitorHash ?? 'anon'}:${input.normalized}:${JSON.stringify(input.filters)}`,
+    300,
+  );
   if (!fresh) return false;
   await deps.db.insert(searchQueries).values({
     query,
@@ -115,5 +142,7 @@ export async function recordEvent(
   meta: VisitorMeta,
 ): Promise<void> {
   if (meta.bot) return;
-  await deps.db.insert(analyticsEvents).values({ type, resourceId, props, visitorHash: meta.visitorHash });
+  await deps.db
+    .insert(analyticsEvents)
+    .values({ type, resourceId, props, visitorHash: meta.visitorHash });
 }

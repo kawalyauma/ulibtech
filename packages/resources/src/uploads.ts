@@ -18,7 +18,8 @@ export interface TemporaryUpload {
  * creates a `resource_files` row. The caller links it to a resource.
  */
 export async function ingestUpload(ctx: ServiceContext, actor: Actor, upload: TemporaryUpload) {
-  if (!ctx.storage.localPath) throw new Error('Storage provider must expose local paths for validation');
+  if (!ctx.storage.localPath)
+    throw new Error('Storage provider must expose local paths for validation');
   if (upload.sizeBytes <= 0) {
     await ctx.storage.delete(upload.tempKey);
     throw new AppError('BAD_REQUEST', 'The uploaded file is empty.');
@@ -29,7 +30,8 @@ export async function ingestUpload(ctx: ServiceContext, actor: Actor, upload: Te
     detected = await detectFileType(head, upload.originalName);
   } catch (err) {
     await ctx.storage.delete(upload.tempKey);
-    if (err instanceof UnsupportedFileError) throw new AppError('UNSUPPORTED_MEDIA_TYPE', err.message);
+    if (err instanceof UnsupportedFileError)
+      throw new AppError('UNSUPPORTED_MEDIA_TYPE', err.message);
     throw err;
   }
   const key = buildKey('resources', detected.extension);
@@ -51,6 +53,10 @@ export async function ingestUpload(ctx: ServiceContext, actor: Actor, upload: Te
   return file;
 }
 
-export async function attachFileToResource(ctx: ServiceContext, fileId: string, resourceId: string) {
+export async function attachFileToResource(
+  ctx: ServiceContext,
+  fileId: string,
+  resourceId: string,
+) {
   await ctx.db.update(resourceFiles).set({ resourceId }).where(eq(resourceFiles.id, fileId));
 }

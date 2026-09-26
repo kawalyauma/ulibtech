@@ -35,7 +35,10 @@ export const resourceViews = pgTable(
       .notNull()
       .references(() => resources.id, { onDelete: 'cascade' }),
   },
-  (t) => [index('resource_views_resource_created_idx').on(t.resourceId, t.createdAt), index('resource_views_created_idx').on(t.createdAt)],
+  (t) => [
+    index('resource_views_resource_created_idx').on(t.resourceId, t.createdAt),
+    index('resource_views_created_idx').on(t.createdAt),
+  ],
 );
 
 export const resourceDownloads = pgTable(
@@ -112,7 +115,10 @@ export const resourceStatsDaily = pgTable(
     downloads: integer('downloads').notNull().default(0),
     shares: integer('shares').notNull().default(0),
   },
-  (t) => [primaryKey({ columns: [t.resourceId, t.day] }), index('resource_stats_daily_day_idx').on(t.day)],
+  (t) => [
+    primaryKey({ columns: [t.resourceId, t.day] }),
+    index('resource_stats_daily_day_idx').on(t.day),
+  ],
 );
 
 /** Site-wide daily metrics (views, downloads, searches, no-result searches, shares). */

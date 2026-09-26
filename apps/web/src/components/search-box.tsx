@@ -19,7 +19,10 @@ function readRecent(): string[] {
 
 export function saveRecentSearch(q: string) {
   try {
-    const next = [q, ...readRecent().filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 6);
+    const next = [q, ...readRecent().filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(
+      0,
+      6,
+    );
     localStorage.setItem(RECENT_KEY, JSON.stringify(next));
   } catch {
     /* storage unavailable */
@@ -50,52 +53,63 @@ export function SearchBox({
   const router = useRouter();
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<Suggestion[]>([]);
+  const [fetched, setFetched] = useState<{ key: string; items: Suggestion[] } | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
   const [active, setActive] = useState(-1);
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => setValue(defaultValue), [defaultValue]);
+  const query = value.trim();
+  const queryKey = query.toLowerCase();
+  const items: Suggestion[] =
+    query.length < 2
+      ? []
+      : (cache.get(queryKey) ?? (fetched?.key === queryKey ? fetched.items : []));
 
   useEffect(() => {
-    const q = value.trim();
-    if (q.length < 2) {
-      setItems([]);
-      return;
-    }
-    const key = q.toLowerCase();
-    const hit = cache.get(key);
-    if (hit) {
-      setItems(hit);
-      return;
-    }
+    const q = query;
+    const key = queryKey;
+    if (q.length < 2 || cache.has(key)) return;
     const timer = setTimeout(async () => {
       abortRef.current?.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       try {
-        const res = await fetch(`/api/search/suggest?q=${encodeURIComponent(q)}&limit=8`, { signal: ctrl.signal });
+        const res = await fetch(`/api/search/suggest?q=${encodeURIComponent(q)}&limit=8`, {
+          signal: ctrl.signal,
+        });
         if (!res.ok) return;
         const data = (await res.json()) as { items: Suggestion[] };
         cache.set(key, data.items);
-        setItems(data.items);
+        setFetched({ key, items: data.items });
       } catch {
         /* aborted or offline */
       }
     }, 180);
     return () => clearTimeout(timer);
-  }, [value]);
+  }, [query, queryKey]);
 
   const showRecent = value.trim().length < 2;
-  const options: { text: string; href: string; icon: 'recent' | 'trending' | Suggestion['kind'] }[] = showRecent
+  const options: {
+    text: string;
+    href: string;
+    icon: 'recent' | 'trending' | Suggestion['kind'];
+  }[] = showRecent
     ? [
-        ...recent.map((r) => ({ text: r, href: `/search?q=${encodeURIComponent(r)}`, icon: 'recent' as const })),
+        ...recent.map((r) => ({
+          text: r,
+          href: `/search?q=${encodeURIComponent(r)}`,
+          icon: 'recent' as const,
+        })),
         ...trending
           .filter((t) => !recent.includes(t))
           .slice(0, 5)
-          .map((t) => ({ text: t, href: `/search?q=${encodeURIComponent(t)}`, icon: 'trending' as const })),
+          .map((t) => ({
+            text: t,
+            href: `/search?q=${encodeURIComponent(t)}`,
+            icon: 'trending' as const,
+          })),
       ]
     : items.map((s) => ({ text: s.text, href: s.href, icon: s.kind }));
 
@@ -109,7 +123,13 @@ export function SearchBox({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const opt = options[active];
-    if (open && opt) return go(opt.href, opt.icon === 'query' || opt.icon === 'recent' || opt.icon === 'trending' ? opt.text : undefined);
+    if (open && opt)
+      return go(
+        opt.href,
+        opt.icon === 'query' || opt.icon === 'recent' || opt.icon === 'trending'
+          ? opt.text
+          : undefined,
+      );
     const q = value.trim();
     if (!q) return;
     go(`/search?q=${encodeURIComponent(q)}`, q);
@@ -132,20 +152,30 @@ export function SearchBox({
   const Icon = ({ kind }: { kind: string }) => {
     const cls = 'size-4 shrink-0 text-muted-foreground';
     if (kind === 'recent') return <Clock className={cls} aria-hidden="true" />;
-    if (kind === 'trending' || kind === 'query') return <TrendingUp className={cls} aria-hidden="true" />;
+    if (kind === 'trending' || kind === 'query')
+      return <TrendingUp className={cls} aria-hidden="true" />;
     if (kind === 'resource') return <FileText className={cls} aria-hidden="true" />;
     return <Folder className={cls} aria-hidden="true" />;
   };
 
   const expanded = open && options.length > 0;
   return (
-    <form action="/search" method="get" role="search" onSubmit={submit} className={cn('relative w-full', className)}>
+    <form
+      action="/search"
+      method="get"
+      role="search"
+      onSubmit={submit}
+      className={cn('relative w-full', className)}
+    >
       <label htmlFor={`${listId}-input`} className="sr-only">
         Search resources
       </label>
       <div className="relative">
         <Search
-          className={cn('pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground', size === 'lg' ? 'size-5' : 'size-4')}
+          className={cn(
+            'text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2',
+            size === 'lg' ? 'size-5' : 'size-4',
+          )}
           aria-hidden="true"
         />
         <input
@@ -178,7 +208,7 @@ export function SearchBox({
           aria-autocomplete="list"
           aria-activedescendant={active >= 0 ? `${listId}-opt-${active}` : undefined}
           className={cn(
-            'w-full rounded-full border border-input bg-card pr-24 text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30 [&::-webkit-search-cancel-button]:hidden',
+            'border-input bg-card text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring/30 w-full rounded-full border pr-24 shadow-sm outline-none focus:ring-2 [&::-webkit-search-cancel-button]:hidden',
             size === 'lg' ? 'h-14 pl-11 text-base sm:text-lg' : 'h-11 pl-10 text-base sm:text-sm',
           )}
         />
@@ -189,7 +219,7 @@ export function SearchBox({
               setValue('');
               inputRef.current?.focus();
             }}
-            className="absolute top-1/2 right-[4.75rem] -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted"
+            className="text-muted-foreground hover:bg-muted absolute top-1/2 right-[4.75rem] -translate-y-1/2 rounded-full p-1.5"
             aria-label="Clear search"
           >
             <X className="size-4" aria-hidden="true" />
@@ -198,7 +228,7 @@ export function SearchBox({
         <button
           type="submit"
           className={cn(
-            'absolute top-1/2 right-1.5 -translate-y-1/2 rounded-full bg-primary px-4 font-semibold text-primary-foreground hover:bg-primary/90',
+            'bg-primary text-primary-foreground hover:bg-primary/90 absolute top-1/2 right-1.5 -translate-y-1/2 rounded-full px-4 font-semibold',
             size === 'lg' ? 'h-11 text-base' : 'h-8 text-sm',
           )}
         >
@@ -209,9 +239,13 @@ export function SearchBox({
         <ul
           id={`${listId}-list`}
           role="listbox"
-          className="absolute inset-x-0 top-full z-40 mt-2 max-h-[60vh] overflow-y-auto rounded-xl border bg-popover p-1 text-popover-foreground shadow-lg"
+          className="bg-popover text-popover-foreground absolute inset-x-0 top-full z-40 mt-2 max-h-[60vh] overflow-y-auto rounded-xl border p-1 shadow-lg"
         >
-          {showRecent && recent.length ? <li className="px-3 pt-2 pb-1 text-xs font-medium text-muted-foreground">Recent searches</li> : null}
+          {showRecent && recent.length ? (
+            <li className="text-muted-foreground px-3 pt-2 pb-1 text-xs font-medium">
+              Recent searches
+            </li>
+          ) : null}
           {options.map((o, i) => (
             <li
               key={`${o.icon}-${o.text}`}
@@ -223,7 +257,10 @@ export function SearchBox({
                 go(o.href, o.icon === 'resource' || o.icon === 'landing' ? undefined : o.text);
               }}
               onMouseEnter={() => setActive(i)}
-              className={cn('flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm', i === active && 'bg-muted')}
+              className={cn(
+                'flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm',
+                i === active && 'bg-muted',
+              )}
             >
               <Icon kind={o.icon} />
               <span className="truncate">{o.text}</span>

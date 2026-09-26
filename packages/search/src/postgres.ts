@@ -3,7 +3,13 @@ import type { Cache } from '@edushare/cache';
 import type { FacetBucket, Suggestion } from '@edushare/shared';
 import { buildTsquery } from './tsquery';
 import { expandNumberWords, normalizeQuery } from './text';
-import type { Interpretation, ProviderHit, ProviderSearchResult, SearchProvider, SearchRequest } from './types';
+import type {
+  Interpretation,
+  ProviderHit,
+  ProviderSearchResult,
+  SearchProvider,
+  SearchRequest,
+} from './types';
 import {
   buildCorrectionLexicon,
   buildPhraseIndex,
@@ -17,7 +23,8 @@ import { loadVocabulary } from './vocabulary-loader';
 /** Rank weights for {D, C, B, A}: title (A) dominates; description (D) is lowest. */
 const WEIGHTS = '{0.15,0.35,0.6,1.0}';
 const HL = 'StartSel=««, StopSel=»», HighlightAll=true';
-const SNIPPET = 'StartSel=««, StopSel=»», MaxWords=28, MinWords=12, MaxFragments=2, FragmentDelimiter=" … "';
+const SNIPPET =
+  'StartSel=««, StopSel=»», MaxWords=28, MinWords=12, MaxFragments=2, FragmentDelimiter=" … "';
 
 type Mode = ProviderSearchResult['mode'];
 
@@ -100,11 +107,20 @@ export class PostgresSearchProvider implements SearchProvider {
   }
 
   async rebuildIndex(): Promise<{ indexed: number }> {
-    const rows = await this.db.execute<{ id: string }>(sql`SELECT id FROM resources ORDER BY created_at`);
+    const rows = await this.db.execute<{ id: string }>(
+      sql`SELECT id FROM resources ORDER BY created_at`,
+    );
     const ids = rows.map((r) => r.id);
     for (let i = 0; i < ids.length; i += 200) {
       const batch = ids.slice(i, i + 200);
-      await this.db.execute(this.indexSql(sql`r2.id IN (${sql.join(batch.map((id) => sql`${id}::uuid`), sql`, `)})`));
+      await this.db.execute(
+        this.indexSql(
+          sql`r2.id IN (${sql.join(
+            batch.map((id) => sql`${id}::uuid`),
+            sql`, `,
+          )})`,
+        ),
+      );
     }
     await this.options.cache?.invalidate('suggest');
     return { indexed: ids.length };
@@ -175,7 +191,9 @@ export class PostgresSearchProvider implements SearchProvider {
     if (e.type) parts.push(sql`CASE WHEN r.resource_type_id = ${e.type.id} THEN 0.25 ELSE 0 END`);
     if (e.term) parts.push(sql`CASE WHEN r.term_id = ${e.term.id} THEN 0.1 ELSE 0 END`);
     if (e.year) {
-      parts.push(sql`CASE WHEN r.academic_year_id IN (SELECT id FROM academic_years WHERE year = ${e.year}) THEN 0.1 ELSE 0 END`);
+      parts.push(
+        sql`CASE WHEN r.academic_year_id IN (SELECT id FROM academic_years WHERE year = ${e.year}) THEN 0.1 ELSE 0 END`,
+      );
     }
     return sql.join(parts, sql` + `);
   }
@@ -233,12 +251,20 @@ export class PostgresSearchProvider implements SearchProvider {
     }
     if (matchSql) where.push(matchSql);
 
-    const exactTitle = queryText ? sql`CASE WHEN lower(r.title) = ${queryText} THEN 1.0 ELSE 0 END` : sql`0`;
+    const exactTitle = queryText
+      ? sql`CASE WHEN lower(r.title) = ${queryText} THEN 1.0 ELSE 0 END`
+      : sql`0`;
     const titleSim = queryText ? sql`0.4 * word_similarity(${queryText}, lower(r.title))` : sql`0`;
     const score = sql`(${textScore}) + ${exactTitle} + ${titleSim} + (${this.boostSql(parsed)}) + 0.02 * ln(1 + r.download_count) + CASE WHEN r.featured THEN 0.02 ELSE 0 END`;
 
     const offset = (req.page - 1) * req.pageSize;
-    const rows = await this.db.execute<{ id: string; score: number; total: number; title_hl: string | null; snippet: string | null }>(sql`
+    const rows = await this.db.execute<{
+      id: string;
+      score: number;
+      total: number;
+      title_hl: string | null;
+      snippet: string | null;
+    }>(sql`
       WITH q AS (SELECT ${qExpr} AS q, ${plan.highlight ? sql`to_tsquery('edushare', ${plan.highlight})` : qExpr} AS hq),
       scored AS (
         SELECT r.id, r.title, r.short_description, r.description, r.published_at, r.download_count,
@@ -289,7 +315,11 @@ export class PostgresSearchProvider implements SearchProvider {
     };
   }
 
-  private async facets(where: SQL[], qExpr: SQL, v: Vocabulary): Promise<ProviderSearchResult['facets']> {
+  private async facets(
+    where: SQL[],
+    qExpr: SQL,
+    v: Vocabulary,
+  ): Promise<ProviderSearchResult['facets']> {
     const rows = await this.db.execute<{
       class_id: string | null;
       subject_id: string | null;
@@ -316,7 +346,8 @@ export class PostgresSearchProvider implements SearchProvider {
       WHERE ${sql.join(where, sql` AND `)}
       GROUP BY GROUPING SETS ((r.class_id), (r.subject_id), (r.resource_type_id), (r.academic_year_id), (r.term_id), (f.kind))`);
     const facets = emptyFacets();
-    const find = (list: { id: string; slug: string; label: string }[], id: string | null) => list.find((x) => x.id === id);
+    const find = (list: { id: string; slug: string; label: string }[], id: string | null) =>
+      list.find((x) => x.id === id);
     for (const row of rows) {
       let bucket: FacetBucket | null = null;
       let key: keyof ProviderSearchResult['facets'] | null = null;
@@ -331,12 +362,16 @@ export class PostgresSearchProvider implements SearchProvider {
         if (t) [key, bucket] = ['type', { slug: t.slug, name: t.label, count: row.n }];
       } else if (row.gy === 0 && row.academic_year_id) {
         const y = v.years.find((x) => x.id === row.academic_year_id);
-        if (y) [key, bucket] = ['year', { slug: String(y.year), name: String(y.year), count: row.n }];
+        if (y)
+          [key, bucket] = ['year', { slug: String(y.year), name: String(y.year), count: row.n }];
       } else if (row.gm === 0 && row.term_id) {
         const t = find(v.terms, row.term_id);
         if (t) [key, bucket] = ['term', { slug: t.slug, name: t.label, count: row.n }];
       } else if (row.gk === 0 && row.kind) {
-        [key, bucket] = ['fileType', { slug: row.kind, name: row.kind.toUpperCase(), count: row.n }];
+        [key, bucket] = [
+          'fileType',
+          { slug: row.kind, name: row.kind.toUpperCase(), count: row.n },
+        ];
       }
       if (key && bucket) facets[key].push(bucket);
     }
@@ -379,7 +414,13 @@ export class PostgresSearchProvider implements SearchProvider {
 
     // 1. Browse: nothing typed.
     if (!parsed.normalized) {
-      const r = await this.runPlan(req, parsed, filters, { mode: 'browse', tsquery: null, hardEntities: false }, '');
+      const r = await this.runPlan(
+        req,
+        parsed,
+        filters,
+        { mode: 'browse', tsquery: null, hardEntities: false },
+        '',
+      );
       return {
         ...base,
         hits: r.hits,
@@ -394,9 +435,19 @@ export class PostgresSearchProvider implements SearchProvider {
     const allTokens = [...parsed.terms, ...parsed.entityTokens];
     const plans: Plan[] = [
       // All free-text terms must match; recognised class/subject/type/year become filters.
-      { mode: 'all', tsquery: buildTsquery(parsed.terms, '&') || null, hardEntities: true, highlight: buildTsquery(allTokens, '|') || null },
+      {
+        mode: 'all',
+        tsquery: buildTsquery(parsed.terms, '&') || null,
+        hardEntities: true,
+        highlight: buildTsquery(allTokens, '|') || null,
+      },
       // Relax: any word may match; entities only boost ranking.
-      { mode: 'any', tsquery: buildTsquery(allTokens, '|') || null, hardEntities: false, highlight: buildTsquery(allTokens, '|') || null },
+      {
+        mode: 'any',
+        tsquery: buildTsquery(allTokens, '|') || null,
+        hardEntities: false,
+        highlight: buildTsquery(allTokens, '|') || null,
+      },
     ];
 
     for (const plan of plans) {
@@ -421,13 +472,24 @@ export class PostgresSearchProvider implements SearchProvider {
     if (corrected) {
       const again = await this.search({ ...req, q: corrected });
       if (again.total > 0) {
-        return { ...again, didYouMean: corrected, normalizedQuery: parsed.normalized, tookMs: Math.round(performance.now() - started) };
+        return {
+          ...again,
+          didYouMean: corrected,
+          normalizedQuery: parsed.normalized,
+          tookMs: Math.round(performance.now() - started),
+        };
       }
     }
     const fuzzy = await this.db.transaction(async (tx) => {
       await tx.execute(sql`SET LOCAL pg_trgm.word_similarity_threshold = 0.45`);
       const provider = new PostgresSearchProvider(tx as unknown as Database, this.options);
-      return provider.runPlan(req, parsed, filters, { mode: 'fuzzy', tsquery: null, hardEntities: false }, queryText);
+      return provider.runPlan(
+        req,
+        parsed,
+        filters,
+        { mode: 'fuzzy', tsquery: null, hardEntities: false },
+        queryText,
+      );
     });
     return {
       ...base,
@@ -442,13 +504,21 @@ export class PostgresSearchProvider implements SearchProvider {
 
   // ---------------------------------------------------------------- suggestions
 
-  private async combos(v: Vocabulary): Promise<{ label: string; href: string; match: string; count: number; parts: number }[]> {
+  private async combos(
+    v: Vocabulary,
+  ): Promise<{ label: string; href: string; match: string; count: number; parts: number }[]> {
     const load = async () => {
-      const rows = await this.db.execute<{ class_id: string | null; subject_id: string | null; resource_type_id: string | null; n: number }>(sql`
+      const rows = await this.db.execute<{
+        class_id: string | null;
+        subject_id: string | null;
+        resource_type_id: string | null;
+        n: number;
+      }>(sql`
         SELECT class_id, subject_id, resource_type_id, count(*)::int AS n
         FROM resources WHERE status = 'published'
         GROUP BY GROUPING SETS ((class_id, subject_id, resource_type_id), (class_id, subject_id), (class_id, resource_type_id), (resource_type_id), (subject_id), (class_id))`);
-      const out: { label: string; href: string; match: string; count: number; parts: number }[] = [];
+      const out: { label: string; href: string; match: string; count: number; parts: number }[] =
+        [];
       for (const r of rows) {
         const c = v.classes.find((x) => x.id === r.class_id);
         const s = v.subjects.find((x) => x.id === r.subject_id);
@@ -466,7 +536,9 @@ export class PostgresSearchProvider implements SearchProvider {
         else if (s && t) href = `/subjects/${s.slug}/${t.slug}`;
         else if (s) href = `/subjects/${s.slug}`;
         else href = `/${t!.slug}`;
-        const match = normalizeQuery([label, ...(c?.phrases ?? []), ...(s?.phrases ?? []), ...(t?.phrases ?? [])].join(' '));
+        const match = normalizeQuery(
+          [label, ...(c?.phrases ?? []), ...(s?.phrases ?? []), ...(t?.phrases ?? [])].join(' '),
+        );
         out.push({ label, href, match, count: r.n, parts: [c, s, t].filter(Boolean).length });
       }
       return out;
@@ -503,7 +575,8 @@ export class PostgresSearchProvider implements SearchProvider {
           const db = Math.abs(b.parts - want);
           return da - db || b.count - a.count || a.label.length - b.label.length;
         });
-      for (const c of matching.slice(0, Math.ceil(limit * 0.6))) push({ text: c.label, href: c.href, kind: 'landing' });
+      for (const c of matching.slice(0, Math.ceil(limit * 0.6)))
+        push({ text: c.label, href: c.href, kind: 'landing' });
 
       // Matching resource titles (prefix full-text, then trigram).
       const tsq = buildTsquery(tokens, '&');
@@ -513,7 +586,8 @@ export class PostgresSearchProvider implements SearchProvider {
           WHERE status = 'published' AND (search_vector @@ to_tsquery('edushare', ${tsq}) OR lower(title) % ${normalized})
           ORDER BY (search_vector @@ to_tsquery('edushare', ${tsq})) DESC, similarity(lower(title), ${normalized}) DESC, download_count DESC
           LIMIT ${limit}`);
-        for (const r of rows) push({ text: r.title, href: `/resources/${r.slug}`, kind: 'resource' });
+        for (const r of rows)
+          push({ text: r.title, href: `/resources/${r.slug}`, kind: 'resource' });
       }
 
       // Popular past searches that returned results.
@@ -521,9 +595,16 @@ export class PostgresSearchProvider implements SearchProvider {
         SELECT normalized FROM search_queries
         WHERE created_at > now() - interval '30 days' AND results_count > 0 AND normalized LIKE ${`${normalized.replace(/[%_]/g, '')}%`}
         GROUP BY normalized ORDER BY count(*) DESC LIMIT 3`);
-      for (const p of popular) push({ text: p.normalized, href: `/search?q=${encodeURIComponent(p.normalized)}`, kind: 'query' });
+      for (const p of popular)
+        push({
+          text: p.normalized,
+          href: `/search?q=${encodeURIComponent(p.normalized)}`,
+          kind: 'query',
+        });
       return out;
     };
-    return this.options.cache ? this.options.cache.wrap('suggest', `${limit}:${normalized}`, 600, compute) : compute();
+    return this.options.cache
+      ? this.options.cache.wrap('suggest', `${limit}:${normalized}`, 600, compute)
+      : compute();
   }
 }

@@ -19,7 +19,11 @@ export class NoopScanner implements FileScanner {
 /** Minimal clamd INSTREAM client. */
 export class ClamdScanner implements FileScanner {
   readonly name = 'clamd';
-  constructor(private readonly host: string, private readonly port = 3310, private readonly timeoutMs = 60_000) {}
+  constructor(
+    private readonly host: string,
+    private readonly port = 3310,
+    private readonly timeoutMs = 60_000,
+  ) {}
 
   scan(path: string): Promise<ScanVerdict> {
     return new Promise((resolve, reject) => {
@@ -30,7 +34,11 @@ export class ClamdScanner implements FileScanner {
       socket.on('error', reject);
       socket.on('close', () => {
         if (/OK\0?\s*$/.test(response)) resolve({ status: 'clean' });
-        else if (/FOUND/.test(response)) resolve({ status: 'infected', signature: response.replace(/^stream:\s*|\s*FOUND.*$/g, '') });
+        else if (/FOUND/.test(response))
+          resolve({
+            status: 'infected',
+            signature: response.replace(/^stream:\s*|\s*FOUND.*$/g, ''),
+          });
         else reject(new Error(`Unexpected clamd response: ${response}`));
       });
       socket.on('connect', () => {

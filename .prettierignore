@@ -4,3 +4,8 @@ storage/
 backups/
 .next/
 dist/
+.next-*/
+apps/web/public/pdfjs/
+test-results/
+playwright-report/
+**/*.md

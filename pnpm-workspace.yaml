@@ -1,10 +1,10 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - 'apps/*'
+  - 'packages/*'
 onlyBuiltDependencies:
-  - "@napi-rs/canvas"
+  - '@napi-rs/canvas'
   - esbuild
   - sharp
-  - "@node-rs/argon2"
+  - '@node-rs/argon2'
   - msgpackr-extract
   - unrs-resolver

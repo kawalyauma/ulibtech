@@ -2,9 +2,19 @@ import { sql } from '@edushare/database';
 import { SITEMAP_PAGE_SIZE, type SitemapUrl } from '@edushare/seo';
 import type { ServiceContext } from './context';
 
-export type SitemapName = 'static' | 'classes' | 'subjects' | 'types' | 'landing' | 'topics' | 'collections' | `resources-${number}`;
+export type SitemapName =
+  | 'static'
+  | 'classes'
+  | 'subjects'
+  | 'types'
+  | 'landing'
+  | 'topics'
+  | 'collections'
+  | `resources-${number}`;
 
-export async function getSitemapIndex(ctx: ServiceContext): Promise<{ name: string; lastmod: string | null }[]> {
+export async function getSitemapIndex(
+  ctx: ServiceContext,
+): Promise<{ name: string; lastmod: string | null }[]> {
   const [row] = await ctx.db.execute<{ n: number; last: string | null }>(
     sql`SELECT count(*)::int AS n, max(updated_at)::text AS last FROM resources WHERE status = 'published'`,
   );
@@ -23,7 +33,10 @@ export async function getSitemapIndex(ctx: ServiceContext): Promise<{ name: stri
 }
 
 /** Returns sitemap URLs as site-relative paths; the web app prefixes the origin. */
-export async function getSitemapUrls(ctx: ServiceContext, name: string): Promise<SitemapUrl[] | null> {
+export async function getSitemapUrls(
+  ctx: ServiceContext,
+  name: string,
+): Promise<SitemapUrl[] | null> {
   const db = ctx.db;
   if (name === 'static') {
     return [
@@ -38,22 +51,43 @@ export async function getSitemapUrls(ctx: ServiceContext, name: string): Promise
     const rows = await db.execute<{ slug: string; last: string | null }>(sql`
       SELECT c.slug, max(r.updated_at)::text AS last FROM classes c
       JOIN resources r ON r.class_id = c.id AND r.status = 'published' GROUP BY c.slug`);
-    return rows.map((r) => ({ loc: `/classes/${r.slug}`, lastmod: r.last, changefreq: 'daily', priority: 0.8 }));
+    return rows.map((r) => ({
+      loc: `/classes/${r.slug}`,
+      lastmod: r.last,
+      changefreq: 'daily',
+      priority: 0.8,
+    }));
   }
   if (name === 'subjects') {
     const rows = await db.execute<{ slug: string; last: string | null }>(sql`
       SELECT s.slug, max(r.updated_at)::text AS last FROM subjects s
       JOIN resources r ON r.subject_id = s.id AND r.status = 'published' GROUP BY s.slug`);
-    return rows.map((r) => ({ loc: `/subjects/${r.slug}`, lastmod: r.last, changefreq: 'daily', priority: 0.7 }));
+    return rows.map((r) => ({
+      loc: `/subjects/${r.slug}`,
+      lastmod: r.last,
+      changefreq: 'daily',
+      priority: 0.7,
+    }));
   }
   if (name === 'types') {
     const rows = await db.execute<{ slug: string; last: string | null }>(sql`
       SELECT t.slug, max(r.updated_at)::text AS last FROM resource_types t
       JOIN resources r ON r.resource_type_id = t.id AND r.status = 'published' GROUP BY t.slug`);
-    return rows.map((r) => ({ loc: `/${r.slug}`, lastmod: r.last, changefreq: 'daily', priority: 0.8 }));
+    return rows.map((r) => ({
+      loc: `/${r.slug}`,
+      lastmod: r.last,
+      changefreq: 'daily',
+      priority: 0.8,
+    }));
   }
   if (name === 'landing') {
-    const rows = await db.execute<{ c: string | null; s: string | null; t: string | null; y: number | null; last: string | null }>(sql`
+    const rows = await db.execute<{
+      c: string | null;
+      s: string | null;
+      t: string | null;
+      y: number | null;
+      last: string | null;
+    }>(sql`
       SELECT c.slug AS c, s.slug AS s, t.slug AS t, ay.year AS y, max(r.updated_at)::text AS last
       FROM resources r
       JOIN classes c ON c.id = r.class_id
@@ -70,7 +104,13 @@ export async function getSitemapUrls(ctx: ServiceContext, name: string): Promise
       else if (r.s && r.t && r.y === null) loc = `/${r.c}/${r.s}/${r.t}`;
       else if (r.s && !r.t) loc = `/${r.c}/${r.s}`;
       else if (!r.s && r.t) loc = `/${r.c}/${r.t}`;
-      if (loc) urls.push({ loc, lastmod: r.last, changefreq: 'daily', priority: loc.split('/').length > 3 ? 0.6 : 0.7 });
+      if (loc)
+        urls.push({
+          loc,
+          lastmod: r.last,
+          changefreq: 'daily',
+          priority: loc.split('/').length > 3 ? 0.6 : 0.7,
+        });
     }
     return [...new Map(urls.map((u) => [u.loc, u])).values()];
   }
@@ -78,11 +118,23 @@ export async function getSitemapUrls(ctx: ServiceContext, name: string): Promise
     const rows = await db.execute<{ slug: string; last: string | null }>(sql`
       SELECT t.slug, max(r.updated_at)::text AS last FROM topics t
       JOIN resources r ON r.topic_id = t.id AND r.status = 'published' GROUP BY t.slug`);
-    return rows.map((r) => ({ loc: `/topics/${r.slug}`, lastmod: r.last, changefreq: 'weekly', priority: 0.5 }));
+    return rows.map((r) => ({
+      loc: `/topics/${r.slug}`,
+      lastmod: r.last,
+      changefreq: 'weekly',
+      priority: 0.5,
+    }));
   }
   if (name === 'collections') {
-    const rows = await db.execute<{ slug: string; last: string }>(sql`SELECT slug, updated_at::text AS last FROM collections WHERE is_published`);
-    return rows.map((r) => ({ loc: `/collections/${r.slug}`, lastmod: r.last, changefreq: 'weekly', priority: 0.6 }));
+    const rows = await db.execute<{ slug: string; last: string }>(
+      sql`SELECT slug, updated_at::text AS last FROM collections WHERE is_published`,
+    );
+    return rows.map((r) => ({
+      loc: `/collections/${r.slug}`,
+      lastmod: r.last,
+      changefreq: 'weekly',
+      priority: 0.6,
+    }));
   }
   const m = /^resources-(\d+)$/.exec(name);
   if (m) {

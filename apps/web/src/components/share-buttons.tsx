@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { Check, Copy, Mail, Send, Share2 } from 'lucide-react';
 import type { ShareChannel } from '@edushare/shared';
 import { Button, cn } from '@edushare/ui';
@@ -36,17 +36,68 @@ function XIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-export function ShareButtons({ resourceId, url, title, text, className }: { resourceId: string; url: string; title: string; text: string; className?: string }) {
+export function ShareButtons({
+  resourceId,
+  url,
+  title,
+  text,
+  className,
+}: {
+  resourceId: string;
+  url: string;
+  title: string;
+  text: string;
+  className?: string;
+}) {
   const [copied, setCopied] = useState(false);
-  const [canShare, setCanShare] = useState(false);
-  useEffect(() => setCanShare(typeof navigator.share === 'function'), []);
+  const canShare = useSyncExternalStore(
+    () => () => undefined,
+    () => typeof navigator.share === 'function',
+    () => false,
+  );
   const message = `${title} – free download: ${url}`;
-  const links: { channel: ShareChannel; label: string; href: string; icon: React.ReactNode; className: string }[] = [
-    { channel: 'whatsapp', label: 'WhatsApp', href: `https://wa.me/?text=${encodeURIComponent(message)}`, icon: <WhatsAppIcon className="size-4" />, className: 'bg-[#1f8f4e] text-white hover:bg-[#197a42]' },
-    { channel: 'facebook', label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, icon: <FacebookIcon className="size-4" />, className: 'bg-[#1668d6] text-white hover:bg-[#1259b8]' },
-    { channel: 'x', label: 'X', href: `https://x.com/intent/post?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`, icon: <XIcon className="size-4" />, className: 'bg-foreground text-background hover:opacity-90' },
-    { channel: 'telegram', label: 'Telegram', href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`, icon: <Send className="size-4" aria-hidden="true" />, className: 'bg-[#1f7fb8] text-white hover:bg-[#196a9a]' },
-    { channel: 'email', label: 'Email', href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${text}\n\n${url}`)}`, icon: <Mail className="size-4" aria-hidden="true" />, className: 'border bg-card hover:bg-muted' },
+  const links: {
+    channel: ShareChannel;
+    label: string;
+    href: string;
+    icon: React.ReactNode;
+    className: string;
+  }[] = [
+    {
+      channel: 'whatsapp',
+      label: 'WhatsApp',
+      href: `https://wa.me/?text=${encodeURIComponent(message)}`,
+      icon: <WhatsAppIcon className="size-4" />,
+      className: 'bg-[#1f8f4e] text-white hover:bg-[#197a42]',
+    },
+    {
+      channel: 'facebook',
+      label: 'Facebook',
+      href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+      icon: <FacebookIcon className="size-4" />,
+      className: 'bg-[#1668d6] text-white hover:bg-[#1259b8]',
+    },
+    {
+      channel: 'x',
+      label: 'X',
+      href: `https://x.com/intent/post?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`,
+      icon: <XIcon className="size-4" />,
+      className: 'bg-foreground text-background hover:opacity-90',
+    },
+    {
+      channel: 'telegram',
+      label: 'Telegram',
+      href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`,
+      icon: <Send className="size-4" aria-hidden="true" />,
+      className: 'bg-[#1f7fb8] text-white hover:bg-[#196a9a]',
+    },
+    {
+      channel: 'email',
+      label: 'Email',
+      href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${text}\n\n${url}`)}`,
+      icon: <Mail className="size-4" aria-hidden="true" />,
+      className: 'border bg-card hover:bg-muted',
+    },
   ];
 
   const nativeShare = async () => {
@@ -90,7 +141,10 @@ export function ShareButtons({ resourceId, url, title, text, className }: { reso
             target="_blank"
             rel="noopener noreferrer nofollow"
             onClick={() => recordShare(resourceId, l.channel)}
-            className={cn('inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium', l.className)}
+            className={cn(
+              'inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium',
+              l.className,
+            )}
             data-share={l.channel}
           >
             {l.icon}
@@ -98,7 +152,11 @@ export function ShareButtons({ resourceId, url, title, text, className }: { reso
           </a>
         ))}
         <Button variant="outline" size="sm" onClick={copy} aria-live="polite">
-          {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
+          {copied ? (
+            <Check className="size-4" aria-hidden="true" />
+          ) : (
+            <Copy className="size-4" aria-hidden="true" />
+          )}
           {copied ? 'Copied' : 'Copy link'}
         </Button>
       </div>

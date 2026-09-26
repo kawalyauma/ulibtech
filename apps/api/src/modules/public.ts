@@ -19,10 +19,26 @@ import {
   searchResources,
   PUBLIC_CACHE_NS,
 } from '@edushare/resources';
-import { AppError, listResourcesQuerySchema, searchQuerySchema, shareEventSchema, suggestQuerySchema, trackEventSchema, RESOURCE_SORTS } from '@edushare/shared';
+import {
+  AppError,
+  listResourcesQuerySchema,
+  searchQuerySchema,
+  shareEventSchema,
+  suggestQuerySchema,
+  trackEventSchema,
+  RESOURCE_SORTS,
+} from '@edushare/shared';
 import { z } from 'zod';
 import { expandNumberWords, normalizeQuery } from '@edushare/search';
-import { CACHE_PUBLIC_LONG, CACHE_PUBLIC_SHORT, CACHE_NONE, jsonBody, parse, query, type AppEnv } from '../lib/http';
+import {
+  CACHE_PUBLIC_LONG,
+  CACHE_PUBLIC_SHORT,
+  CACHE_NONE,
+  jsonBody,
+  parse,
+  query,
+  type AppEnv,
+} from '../lib/http';
 import { visitorMeta } from '../lib/visitor';
 import { limiter } from '../middleware/rate-limit';
 import type { Services } from '../services';
@@ -67,9 +83,18 @@ export function publicRoutes(services: Services) {
     const level = tax.levels.find((l) => l.classes.some((x) => x.slug === c.req.param('slug')));
     const cls = level?.classes.find((x) => x.slug === c.req.param('slug'));
     if (!cls || !level) throw AppError.notFound('Class');
-    const subjects = await cache.wrap(PUBLIC_CACHE_NS, `class-subjects:${cls.id}`, 300, async () => [...(await getClassSubjects(ctx, cls.id))]);
+    const subjects = await cache.wrap(
+      PUBLIC_CACHE_NS,
+      `class-subjects:${cls.id}`,
+      300,
+      async () => [...(await getClassSubjects(ctx, cls.id))],
+    );
     c.header('Cache-Control', CACHE_PUBLIC_SHORT);
-    return c.json({ class: cls, level: { id: level.id, name: level.name, slug: level.slug }, subjects });
+    return c.json({
+      class: cls,
+      level: { id: level.id, name: level.name, slug: level.slug },
+      subjects,
+    });
   });
   app.get('/subjects', async (c) => {
     c.header('Cache-Control', CACHE_PUBLIC_LONG);
@@ -100,7 +125,10 @@ export function publicRoutes(services: Services) {
   });
 
   app.get('/resources/by-ids', async (c) => {
-    const ids = (c.req.query('ids') ?? '').split(',').filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50);
+    const ids = (c.req.query('ids') ?? '')
+      .split(',')
+      .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+      .slice(0, 50);
     c.header('Cache-Control', CACHE_PUBLIC_SHORT);
     return c.json({ items: await getCardsByIds(ctx, ids) });
   });
@@ -110,7 +138,16 @@ export function publicRoutes(services: Services) {
     if (result.kind === 'not_found') throw AppError.notFound('Resource');
     if (result.kind === 'unavailable') {
       c.header('Cache-Control', CACHE_PUBLIC_SHORT);
-      return c.json({ error: { code: 'FILE_MISSING', message: 'This resource is no longer available.', details: { title: result.title } } }, 410);
+      return c.json(
+        {
+          error: {
+            code: 'FILE_MISSING',
+            message: 'This resource is no longer available.',
+            details: { title: result.title },
+          },
+        },
+        410,
+      );
     }
     c.header('Cache-Control', CACHE_PUBLIC_SHORT);
     if (result.kind === 'redirect') return c.json({ redirect: result.slug });
@@ -179,7 +216,9 @@ export function publicRoutes(services: Services) {
   app.post('/resources/:id/share', limiter(redis, 'share', 30, 60), async (c) => {
     const id = c.req.param('id');
     const body = parse(shareEventSchema, await jsonBody(c));
-    const exists = await ctx.db.query.resources.findFirst({ where: eq(resources.id, id), columns: { id: true, status: true } }).catch(() => null);
+    const exists = await ctx.db.query.resources
+      .findFirst({ where: eq(resources.id, id), columns: { id: true, status: true } })
+      .catch(() => null);
     if (!exists || exists.status !== 'published') throw AppError.notFound('Resource');
     const counted = await recordShare({ db: ctx.db, redis }, id, body.channel, visitorMeta(c));
     c.header('Cache-Control', CACHE_NONE);
@@ -194,11 +233,17 @@ export function publicRoutes(services: Services) {
 
     let resourceId = body.resourceId ?? null;
     if (!resourceId && body.slug) {
-      const row = await ctx.db.query.resources.findFirst({ where: eq(resources.slug, body.slug), columns: { id: true } });
+      const row = await ctx.db.query.resources.findFirst({
+        where: eq(resources.slug, body.slug),
+        columns: { id: true },
+      });
       resourceId = row?.id ?? null;
     }
     if (resourceId) {
-      const row = await ctx.db.query.resources.findFirst({ where: eq(resources.id, resourceId), columns: { id: true, status: true } });
+      const row = await ctx.db.query.resources.findFirst({
+        where: eq(resources.id, resourceId),
+        columns: { id: true, status: true },
+      });
       if (!row || row.status !== 'published') resourceId = null;
     }
 
@@ -215,7 +260,12 @@ export function publicRoutes(services: Services) {
         const { q: _q, results: _r, normalized: _n, ...filters } = props;
         const counted = await recordSearch(
           deps,
-          { query: q, normalized: expandNumberWords(normalizeQuery(q)), resultsCount: Number.isFinite(results) ? results : 0, filters },
+          {
+            query: q,
+            normalized: expandNumberWords(normalizeQuery(q)),
+            resultsCount: Number.isFinite(results) ? results : 0,
+            filters,
+          },
           meta,
         );
         return c.json({ ok: true, counted });

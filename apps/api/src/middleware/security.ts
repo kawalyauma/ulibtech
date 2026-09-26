@@ -28,6 +28,13 @@ export const accessLog: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (process.env.NODE_ENV === 'test' || c.req.path === '/health') return;
   const ms = Math.round(performance.now() - start);
   console.log(
-    JSON.stringify({ t: new Date().toISOString(), id: c.get('requestId'), m: c.req.method, p: c.req.path, s: c.res.status, ms }),
+    JSON.stringify({
+      t: new Date().toISOString(),
+      id: c.get('requestId'),
+      m: c.req.method,
+      p: c.req.path,
+      s: c.res.status,
+      ms,
+    }),
   );
 };

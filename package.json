@@ -2,7 +2,7 @@
   "name": "edushare",
   "private": true,
   "version": "0.1.0",
-  "description": "EduShare Uganda — free public educational resource library",
+  "description": "EduShare Uganda \u2014 free public educational resource library",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -21,7 +21,8 @@
     "db:generate": "pnpm --filter @edushare/database generate",
     "db:migrate": "pnpm --filter @edushare/database migrate",
     "db:seed": "pnpm --filter @edushare/database seed",
-    "admin:create": "pnpm --filter @edushare/api admin:create"
+    "admin:create": "pnpm --filter @edushare/api admin:create",
+    "test:reset-db": "tsx scripts/reset-test-db.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -36,7 +37,9 @@
     "tsx": "^4.23.15",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.70.1",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "postgres": "^3.4.9",
+    "drizzle-orm": "^0.45.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

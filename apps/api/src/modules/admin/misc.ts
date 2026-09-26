@@ -21,7 +21,14 @@ import {
   updateTaxonomy,
   PUBLIC_CACHE_NS,
 } from '@edushare/resources';
-import { AppError, adminCreateSchema, adminUpdateSchema, paginationSchema, seoMetadataInputSchema, PERMISSIONS } from '@edushare/shared';
+import {
+  AppError,
+  adminCreateSchema,
+  adminUpdateSchema,
+  paginationSchema,
+  seoMetadataInputSchema,
+  PERMISSIONS,
+} from '@edushare/shared';
 import { z } from 'zod';
 import { jsonBody, parse, query, type AppEnv } from '../../lib/http';
 import { requirePermission } from '../../middleware/auth';
@@ -52,7 +59,9 @@ export function adminMiscRoutes(services: Services) {
     const entity = c.req.param('entity');
     if (!isTaxonomyEntity(entity)) throw AppError.notFound('Taxonomy');
     try {
-      return c.json(await updateTaxonomy(ctx, actorOf(c), entity, c.req.param('id'), await jsonBody(c)));
+      return c.json(
+        await updateTaxonomy(ctx, actorOf(c), entity, c.req.param('id'), await jsonBody(c)),
+      );
     } catch (err) {
       if (err instanceof z.ZodError) throw zodToAppError(err);
       throw err;
@@ -66,8 +75,12 @@ export function adminMiscRoutes(services: Services) {
   });
 
   // ---------------------------------------------------------------- collections
-  app.get('/collections', requirePermission('resources.read'), async (c) => c.json({ items: await listAdminCollections(ctx) }));
-  app.get('/collections/:id', requirePermission('resources.read'), async (c) => c.json(await getAdminCollection(ctx, c.req.param('id'))));
+  app.get('/collections', requirePermission('resources.read'), async (c) =>
+    c.json({ items: await listAdminCollections(ctx) }),
+  );
+  app.get('/collections/:id', requirePermission('resources.read'), async (c) =>
+    c.json(await getAdminCollection(ctx, c.req.param('id'))),
+  );
   app.post('/collections', requirePermission('collections.manage'), async (c) => {
     try {
       return c.json(await saveCollection(ctx, actorOf(c), null, await jsonBody(c)), 201);
@@ -90,7 +103,9 @@ export function adminMiscRoutes(services: Services) {
   });
 
   // ---------------------------------------------------------------- SEO landing overrides
-  app.get('/seo', requirePermission('seo.manage'), async (c) => c.json({ items: await db.select().from(seoMetadata).orderBy(seoMetadata.path) }));
+  app.get('/seo', requirePermission('seo.manage'), async (c) =>
+    c.json({ items: await db.select().from(seoMetadata).orderBy(seoMetadata.path) }),
+  );
   app.get('/seo/preview', requirePermission('seo.manage'), async (c) => {
     const path = c.req.query('path') ?? '';
     const result = await getLanding(ctx, path, { pageSize: 1 });
@@ -102,24 +117,44 @@ export function adminMiscRoutes(services: Services) {
     const [row] = await db
       .insert(seoMetadata)
       .values({ ...input, updatedById: actorOf(c).id })
-      .onConflictDoUpdate({ target: seoMetadata.path, set: { ...input, updatedById: actorOf(c).id, updatedAt: new Date() } })
+      .onConflictDoUpdate({
+        target: seoMetadata.path,
+        set: { ...input, updatedById: actorOf(c).id, updatedAt: new Date() },
+      })
       .returning();
-    await recordAudit(ctx, actorOf(c), { action: 'seo.update', entityType: 'seo', entityId: row!.id, entityLabel: input.path, changes: input });
+    await recordAudit(ctx, actorOf(c), {
+      action: 'seo.update',
+      entityType: 'seo',
+      entityId: row!.id,
+      entityLabel: input.path,
+      changes: input,
+    });
     await ctx.cache?.invalidate(PUBLIC_CACHE_NS);
     await afterContentChange(ctx, []);
     return c.json(row);
   });
   app.delete('/seo/:id', requirePermission('seo.manage'), async (c) => {
-    const [row] = await db.delete(seoMetadata).where(eq(seoMetadata.id, c.req.param('id'))).returning();
+    const [row] = await db
+      .delete(seoMetadata)
+      .where(eq(seoMetadata.id, c.req.param('id')))
+      .returning();
     if (!row) throw AppError.notFound('SEO entry');
-    await recordAudit(ctx, actorOf(c), { action: 'seo.delete', entityType: 'seo', entityId: row.id, entityLabel: row.path });
+    await recordAudit(ctx, actorOf(c), {
+      action: 'seo.delete',
+      entityType: 'seo',
+      entityId: row.id,
+      entityLabel: row.path,
+    });
     await afterContentChange(ctx, []);
     return c.json({ ok: true });
   });
 
   // ---------------------------------------------------------------- analytics
   app.get('/analytics/dashboard', requirePermission('analytics.read'), async (c) => {
-    const days = parse(z.object({ days: z.coerce.number().int().min(1).max(365).default(30) }), query(c)).days;
+    const days = parse(
+      z.object({ days: z.coerce.number().int().min(1).max(365).default(30) }),
+      query(c),
+    ).days;
     return c.json(await getDashboardReport(db, days));
   });
   app.post('/analytics/aggregate', requirePermission('analytics.read'), async (c) => {
@@ -148,21 +183,35 @@ export function adminMiscRoutes(services: Services) {
 
   // ---------------------------------------------------------------- administrators
   app.get('/roles', requirePermission('admins.manage'), async (c) => {
-    const rows = await db.query.roles.findMany({ with: { permissions: { with: { permission: true } } } });
+    const rows = await db.query.roles.findMany({
+      with: { permissions: { with: { permission: true } } },
+    });
     return c.json({
-      items: rows.map((r) => ({ id: r.id, key: r.key, name: r.name, description: r.description, permissions: r.permissions.map((p) => p.permission.key) })),
+      items: rows.map((r) => ({
+        id: r.id,
+        key: r.key,
+        name: r.name,
+        description: r.description,
+        permissions: r.permissions.map((p) => p.permission.key),
+      })),
       permissions: PERMISSIONS,
     });
   });
   app.get('/admins', requirePermission('admins.manage'), async (c) => {
-    const rows = await db.query.admins.findMany({ columns: { passwordHash: false }, with: { roles: { with: { role: true } } }, orderBy: [admins.name] });
+    const rows = await db.query.admins.findMany({
+      columns: { passwordHash: false },
+      with: { roles: { with: { role: true } } },
+      orderBy: [admins.name],
+    });
     return c.json({
       items: rows.map((a) => ({ ...a, roles: a.roles.map((r) => r.role.key) })),
     });
   });
   const setRoles = async (adminId: string, keys: string[]) => {
     const roleRows = await db.select().from(roles);
-    const ids = keys.map((k) => roleRows.find((r) => r.key === k)?.id).filter((x): x is string => Boolean(x));
+    const ids = keys
+      .map((k) => roleRows.find((r) => r.key === k)?.id)
+      .filter((x): x is string => Boolean(x));
     if (!ids.length) throw AppError.badRequest('Choose at least one valid role');
     await db.delete(adminRoles).where(eq(adminRoles.adminId, adminId));
     await db.insert(adminRoles).values(ids.map((roleId) => ({ adminId, roleId })));
@@ -171,17 +220,35 @@ export function adminMiscRoutes(services: Services) {
     const input = parse(adminCreateSchema, await jsonBody(c));
     const exists = await db.query.admins.findFirst({ where: eq(admins.email, input.email) });
     if (exists) throw AppError.conflict('An administrator with that email already exists');
-    const [row] = await db.insert(admins).values({ email: input.email, name: input.name, passwordHash: await hashPassword(input.password) }).returning({ id: admins.id });
+    const [row] = await db
+      .insert(admins)
+      .values({
+        email: input.email,
+        name: input.name,
+        passwordHash: await hashPassword(input.password),
+      })
+      .returning({ id: admins.id });
     await setRoles(row!.id, input.roleKeys);
-    await recordAudit(ctx, actorOf(c), { action: 'admin.create', entityType: 'admin', entityId: row!.id, entityLabel: input.email, changes: { roles: input.roleKeys } });
+    await recordAudit(ctx, actorOf(c), {
+      action: 'admin.create',
+      entityType: 'admin',
+      entityId: row!.id,
+      entityLabel: input.email,
+      changes: { roles: input.roleKeys },
+    });
     return c.json({ id: row!.id }, 201);
   });
   app.patch('/admins/:id', requirePermission('admins.manage'), async (c) => {
     const id = c.req.param('id');
     const input = parse(adminUpdateSchema, await jsonBody(c));
     const me = actorOf(c);
-    if (id === me.id && (input.isActive === false || (input.roleKeys && !input.roleKeys.includes('super_admin')))) {
-      throw AppError.badRequest('You cannot deactivate yourself or remove your own super admin role.');
+    if (
+      id === me.id &&
+      (input.isActive === false || (input.roleKeys && !input.roleKeys.includes('super_admin')))
+    ) {
+      throw AppError.badRequest(
+        'You cannot deactivate yourself or remove your own super admin role.',
+      );
     }
     const set: Partial<typeof admins.$inferInsert> = {};
     if (input.name) set.name = input.name;
@@ -193,7 +260,12 @@ export function adminMiscRoutes(services: Services) {
     if (Object.keys(set).length) await db.update(admins).set(set).where(eq(admins.id, id));
     if (input.roleKeys) await setRoles(id, input.roleKeys);
     if (input.isActive === false || input.password) await destroyAdminSessions(db, id);
-    await recordAudit(ctx, me, { action: 'admin.update', entityType: 'admin', entityId: id, changes: { ...input, password: input.password ? '[changed]' : undefined } });
+    await recordAudit(ctx, me, {
+      action: 'admin.update',
+      entityType: 'admin',
+      entityId: id,
+      changes: { ...input, password: input.password ? '[changed]' : undefined },
+    });
     const access = await loadAdminAccess(db, id);
     return c.json({ ok: true, ...access });
   });
@@ -201,7 +273,11 @@ export function adminMiscRoutes(services: Services) {
   // ---------------------------------------------------------------- audit log
   app.get('/audit', requirePermission('audit.read'), async (c) => {
     const q = parse(
-      paginationSchema.extend({ entityType: z.string().max(40).optional(), entityId: z.string().max(64).optional(), action: z.string().max(60).optional() }),
+      paginationSchema.extend({
+        entityType: z.string().max(40).optional(),
+        entityId: z.string().max(64).optional(),
+        action: z.string().max(60).optional(),
+      }),
       query(c),
     );
     const where: SQL[] = [];
@@ -216,7 +292,13 @@ export function adminMiscRoutes(services: Services) {
       .limit(q.pageSize)
       .offset((q.page - 1) * q.pageSize);
     const total = rows[0]?.total ?? 0;
-    return c.json({ items: rows.map((r) => r.log), page: q.page, pageSize: q.pageSize, total, totalPages: Math.max(1, Math.ceil(total / q.pageSize)) });
+    return c.json({
+      items: rows.map((r) => r.log),
+      page: q.page,
+      pageSize: q.pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / q.pageSize)),
+    });
   });
 
   // ---------------------------------------------------------------- system

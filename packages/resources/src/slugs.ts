@@ -3,14 +3,53 @@ import { slugify } from '@edushare/shared';
 
 /** Top-level public routes; taxonomy slugs must not collide with these. */
 export const RESERVED_SLUGS = new Set([
-  'api', 'admin', 'media', 'download', 'downloads', 'resources', 'resource', 'search', 'classes', 'class',
-  'subjects', 'subject', 'collections', 'collection', 'topics', 'topic', 'about', 'privacy', 'terms-of-use',
-  'contact', 'sitemap', 'sitemaps', 'sitemap.xml', 'robots.txt', 'manifest.webmanifest', 'offline', 'levels',
-  'years', '_next', 'favicon.ico', 'sw.js', 'icons', 'pdfjs', 'og', 'health', 'new', 'popular', 'recent', 'trending',
+  'api',
+  'admin',
+  'media',
+  'download',
+  'downloads',
+  'resources',
+  'resource',
+  'search',
+  'classes',
+  'class',
+  'subjects',
+  'subject',
+  'collections',
+  'collection',
+  'topics',
+  'topic',
+  'about',
+  'privacy',
+  'terms-of-use',
+  'contact',
+  'sitemap',
+  'sitemaps',
+  'sitemap.xml',
+  'robots.txt',
+  'manifest.webmanifest',
+  'offline',
+  'levels',
+  'years',
+  '_next',
+  'favicon.ico',
+  'sw.js',
+  'icons',
+  'pdfjs',
+  'og',
+  'health',
+  'new',
+  'popular',
+  'recent',
+  'trending',
 ]);
 
 /** Generates a unique resource slug, appending -2, -3... when needed. */
-export async function uniqueResourceSlug(db: Database, base: string, excludeId?: string): Promise<string> {
+export async function uniqueResourceSlug(
+  db: Database,
+  base: string,
+  excludeId?: string,
+): Promise<string> {
   const root = slugify(base, 110) || 'resource';
   const rows = await db.execute<{ slug: string }>(sql`
     SELECT slug FROM resources WHERE (slug = ${root} OR slug LIKE ${`${root}-%`}) ${excludeId ? sql`AND id <> ${excludeId}` : sql``}

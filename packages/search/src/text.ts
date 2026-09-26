@@ -10,7 +10,10 @@ export function normalizeQuery(input: string): string {
   q = q.replace(/\b(p|s)\s*\.\s*(\d)\b/g, '$1$2');
   q = q.replace(/\bprimary\s*(\d)\b/g, 'p$1').replace(/\bsenior\s*(\d)\b/g, 's$1');
   q = q.replace(/\bterm\s*(\d)\b/g, 'term $1').replace(/\bt([1-3])\b/g, 'term $1');
-  q = q.replace(/[^a-z0-9\s-]/g, ' ').replace(/-/g, ' ').replace(/\s+/g, ' ');
+  q = q
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ');
   // Collapse spelled-out abbreviations: "s s t" -> "sst"
   q = q.replace(/\b(?:[a-z] )+[a-z]\b/g, (m) => m.replace(/ /g, ''));
   return q.trim();
@@ -36,10 +39,13 @@ const NUMBER_WORDS: Record<string, string> = {
 /** "primary six" -> "p6", "term two" -> "term 2", "senior three" -> "s3". */
 export function expandNumberWords(normalized: string): string {
   return normalized
-    .replace(/\b(primary|senior|term)\s+(one|two|three|four|five|six|seven)\b/g, (_, a: string, n: string) => {
-      const d = NUMBER_WORDS[n] ?? n;
-      return a === 'primary' ? `p${d}` : a === 'senior' ? `s${d}` : `term ${d}`;
-    })
+    .replace(
+      /\b(primary|senior|term)\s+(one|two|three|four|five|six|seven)\b/g,
+      (_, a: string, n: string) => {
+        const d = NUMBER_WORDS[n] ?? n;
+        return a === 'primary' ? `p${d}` : a === 'senior' ? `s${d}` : `term ${d}`;
+      },
+    )
     .replace(/\b(first|second|third)\s+term\b/g, (_, n: string) => `term ${NUMBER_WORDS[n]}`);
 }
 

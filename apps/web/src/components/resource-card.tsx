@@ -10,25 +10,47 @@ export function resourceContext(r: Pick<Card, 'class' | 'subject'>): string {
 
 export function fileSummary(r: Pick<Card, 'file'>): string | null {
   if (!r.file) return null;
-  return [r.file.label, r.file.pageCount ? `${r.file.pageCount} ${r.file.pageCount === 1 ? 'page' : 'pages'}` : null].filter(Boolean).join(' • ');
+  return [
+    r.file.label,
+    r.file.pageCount ? `${r.file.pageCount} ${r.file.pageCount === 1 ? 'page' : 'pages'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' • ');
 }
 
-export function ResourceCard({ resource, priority = false, trackRelated }: { resource: Card; priority?: boolean; trackRelated?: string }) {
+export function ResourceCard({
+  resource,
+  priority = false,
+  trackRelated,
+}: {
+  resource: Card;
+  priority?: boolean;
+  trackRelated?: string;
+}) {
   const context = resourceContext(resource);
   const file = fileSummary(resource);
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-xs transition-shadow hover:shadow-md">
+    <article className="group bg-card relative flex flex-col overflow-hidden rounded-xl border shadow-xs transition-shadow hover:shadow-md">
       <Link
         href={`/resources/${resource.slug}`}
         className="flex flex-1 flex-col after:absolute after:inset-0"
         data-related={trackRelated}
         prefetch={false}
       >
-        <ResourceThumb thumbnail={resource.thumbnail} title={resource.title} priority={priority} fileLabel={resource.file?.label} />
+        <ResourceThumb
+          thumbnail={resource.thumbnail}
+          title={resource.title}
+          priority={priority}
+          fileLabel={resource.file?.label}
+        />
         <div className="flex flex-1 flex-col gap-1 p-3">
-          {context ? <p className="text-xs font-semibold tracking-wide text-primary uppercase">{context}</p> : null}
-          <h3 className="line-clamp-3 text-sm leading-snug font-semibold group-hover:underline">{resource.title}</h3>
-          <p className="mt-auto flex flex-wrap items-center gap-x-2 pt-1 text-xs text-muted-foreground">
+          {context ? (
+            <p className="text-primary text-xs font-semibold tracking-wide uppercase">{context}</p>
+          ) : null}
+          <h3 className="line-clamp-3 text-sm leading-snug font-semibold group-hover:underline">
+            {resource.title}
+          </h3>
+          <p className="text-muted-foreground mt-auto flex flex-wrap items-center gap-x-2 pt-1 text-xs">
             {resource.resourceType ? <span>{resource.resourceType.name}</span> : null}
             {file ? (
               <span className="inline-flex items-center gap-1">
@@ -40,12 +62,13 @@ export function ResourceCard({ resource, priority = false, trackRelated }: { res
         </div>
       </Link>
       <div className="relative z-10 flex flex-col gap-2 border-t px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-xs text-muted-foreground">
-          {formatCompactNumber(resource.downloadCount)} {resource.downloadCount === 1 ? 'download' : 'downloads'}
+        <span className="text-muted-foreground text-xs">
+          {formatCompactNumber(resource.downloadCount)}{' '}
+          {resource.downloadCount === 1 ? 'download' : 'downloads'}
         </span>
         <a
           href={`/download/${resource.slug}`}
-          className="inline-flex h-9 items-center justify-center gap-1 rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 sm:h-8"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 items-center justify-center gap-1 rounded-md px-2.5 text-xs font-semibold sm:h-8"
           aria-label={`Download ${resource.title}`}
           rel="nofollow"
         >
@@ -57,11 +80,24 @@ export function ResourceCard({ resource, priority = false, trackRelated }: { res
   );
 }
 
-export function ResourceGrid({ items, priorityCount = 0, trackRelated }: { items: Card[]; priorityCount?: number; trackRelated?: string }) {
+export function ResourceGrid({
+  items,
+  priorityCount = 0,
+  trackRelated,
+}: {
+  items: Card[];
+  priorityCount?: number;
+  trackRelated?: string;
+}) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
       {items.map((r, i) => (
-        <ResourceCard key={r.id} resource={r} priority={i < priorityCount} trackRelated={trackRelated} />
+        <ResourceCard
+          key={r.id}
+          resource={r}
+          priority={i < priorityCount}
+          trackRelated={trackRelated}
+        />
       ))}
     </div>
   );

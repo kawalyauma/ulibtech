@@ -1,4 +1,15 @@
-import { and, asc, desc, eq, ilike, inArray, or, sql, type Database, type SQL } from '@edushare/database';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  or,
+  sql,
+  type Database,
+  type SQL,
+} from '@edushare/database';
 import {
   classes,
   resourceFiles,
@@ -53,7 +64,11 @@ export async function afterContentChange(ctx: ServiceContext, slugs: string[]): 
   });
 }
 
-async function syncTags(db: Database, resourceId: string, names: string[] | undefined): Promise<void> {
+async function syncTags(
+  db: Database,
+  resourceId: string,
+  names: string[] | undefined,
+): Promise<void> {
   if (names === undefined) return;
   const clean = [...new Set(names.map((n) => n.trim()).filter(Boolean))].slice(0, 40);
   await db.delete(resourceTags).where(eq(resourceTags.resourceId, resourceId));
@@ -79,7 +94,10 @@ async function syncTags(db: Database, resourceId: string, names: string[] | unde
 
 function metadataColumns(input: ResourceUpdateInput) {
   const cols: Partial<typeof resources.$inferInsert> = {};
-  const set = <K extends keyof typeof resources.$inferInsert>(key: K, value: (typeof resources.$inferInsert)[K] | undefined) => {
+  const set = <K extends keyof typeof resources.$inferInsert>(
+    key: K,
+    value: (typeof resources.$inferInsert)[K] | undefined,
+  ) => {
     if (value !== undefined) cols[key] = value;
   };
   set('title', input.title);
@@ -139,7 +157,13 @@ export async function createResourceFromUpload(
       .returning();
     if (!row) throw new Error('Failed to create resource');
     await tx.update(resourceFiles).set({ resourceId: row.id }).where(eq(resourceFiles.id, file.id));
-    await tx.insert(resourceVersions).values({ resourceId: row.id, versionNumber: 1, fileId: file.id, createdById: actor.id, notes: 'Initial upload' });
+    await tx.insert(resourceVersions).values({
+      resourceId: row.id,
+      versionNumber: 1,
+      fileId: file.id,
+      createdById: actor.id,
+      notes: 'Initial upload',
+    });
     await syncTags(tx as unknown as Database, row.id, input.tags);
     return row;
   });
@@ -154,11 +178,23 @@ export async function createResourceFromUpload(
   await ctx.search.indexResource(resource.id);
   await ctx.enqueue('process-file', { fileId: file.id, resourceId: resource.id });
 
-  return { resource: await getAdminResource(ctx, resource.id), duplicates, publishRequested: input.status === 'published' };
+  return {
+    resource: await getAdminResource(ctx, resource.id),
+    duplicates,
+    publishRequested: input.status === 'published',
+  };
 }
 
-export async function updateResource(ctx: ServiceContext, actor: Actor, id: string, input: ResourceUpdateInput) {
-  const before = await ctx.db.query.resources.findFirst({ where: eq(resources.id, id), columns: { searchVector: false, contentVector: false, searchText: false } });
+export async function updateResource(
+  ctx: ServiceContext,
+  actor: Actor,
+  id: string,
+  input: ResourceUpdateInput,
+) {
+  const before = await ctx.db.query.resources.findFirst({
+    where: eq(resources.id, id),
+    columns: { searchVector: false, contentVector: false, searchText: false },
+  });
   if (!before) throw AppError.notFound('Resource');
   const cols = metadataColumns(input);
   let newSlug: string | undefined;
@@ -168,26 +204,38 @@ export async function updateResource(ctx: ServiceContext, actor: Actor, id: stri
   }
   await ctx.db.transaction(async (tx) => {
     if (Object.keys(cols).length) {
-      await tx.update(resources).set({ ...cols, updatedById: actor.id || null }).where(eq(resources.id, id));
+      await tx
+        .update(resources)
+        .set({ ...cols, updatedById: actor.id || null })
+        .where(eq(resources.id, id));
     }
     if (newSlug) {
-      await tx.insert(resourceRedirects).values({ oldSlug: before.slug, resourceId: id }).onConflictDoNothing();
+      await tx
+        .insert(resourceRedirects)
+        .values({ oldSlug: before.slug, resourceId: id })
+        .onConflictDoNothing();
       await tx.delete(resourceRedirects).where(eq(resourceRedirects.oldSlug, newSlug));
     }
     await syncTags(tx as unknown as Database, id, input.tags);
   });
-  const changes = diff(before as unknown as Record<string, unknown>, cols as Record<string, unknown>);
+  const changes = diff(
+    before as unknown as Record<string, unknown>,
+    cols as Record<string, unknown>,
+  );
   if (input.tags) changes.tags = { from: null, to: input.tags };
-  const seoChanged = 'seoTitle' in changes || 'seoDescription' in changes || 'canonicalUrl' in changes;
+  const seoChanged =
+    'seoTitle' in changes || 'seoDescription' in changes || 'canonicalUrl' in changes;
   await recordAudit(ctx, actor, {
-    action: seoChanged && Object.keys(changes).length <= 3 ? 'resource.seo_update' : 'resource.update',
+    action:
+      seoChanged && Object.keys(changes).length <= 3 ? 'resource.seo_update' : 'resource.update',
     entityType: 'resource',
     entityId: id,
     entityLabel: (cols.title as string | undefined) ?? before.title,
     changes,
   });
   await ctx.search.indexResource(id);
-  if (before.status === 'published') await afterContentChange(ctx, [before.slug, ...(newSlug ? [newSlug] : [])]);
+  if (before.status === 'published')
+    await afterContentChange(ctx, [before.slug, ...(newSlug ? [newSlug] : [])]);
   return getAdminResource(ctx, id);
 }
 
@@ -199,19 +247,32 @@ async function assertPublishable(ctx: ServiceContext, id: string) {
   });
   if (!row) throw AppError.notFound('Resource');
   if (!row.file) throw AppError.badRequest('Attach a file before publishing.');
-  if (row.file.isMissing) throw AppError.badRequest('The file for this resource is missing from storage.');
-  if (row.file.scanStatus === 'infected') throw AppError.badRequest('This file failed the security scan and cannot be published.');
+  if (row.file.isMissing)
+    throw AppError.badRequest('The file for this resource is missing from storage.');
+  if (row.file.scanStatus === 'infected')
+    throw AppError.badRequest('This file failed the security scan and cannot be published.');
   if (row.file.scanStatus === 'pending') {
-    throw AppError.conflict('The file is still being processed. It will be publishable in a moment.', { retryable: true });
+    throw AppError.conflict(
+      'The file is still being processed. It will be publishable in a moment.',
+      { retryable: true },
+    );
   }
   return row;
 }
 
-export async function setResourceStatus(ctx: ServiceContext, actor: Actor, id: string, status: Exclude<ResourceStatus, 'draft' | 'review'>) {
+export async function setResourceStatus(
+  ctx: ServiceContext,
+  actor: Actor,
+  id: string,
+  status: Exclude<ResourceStatus, 'draft' | 'review'>,
+) {
   const row =
     status === 'published'
       ? await assertPublishable(ctx, id)
-      : await ctx.db.query.resources.findFirst({ where: eq(resources.id, id), columns: { id: true, title: true, slug: true, status: true, fileId: true } });
+      : await ctx.db.query.resources.findFirst({
+          where: eq(resources.id, id),
+          columns: { id: true, title: true, slug: true, status: true, fileId: true },
+        });
   if (!row) throw AppError.notFound('Resource');
   if (row.status === status) return getAdminResource(ctx, id);
   const now = new Date();
@@ -220,7 +281,9 @@ export async function setResourceStatus(ctx: ServiceContext, actor: Actor, id: s
     .set({
       status,
       updatedById: actor.id || null,
-      ...(status === 'published' ? { publishedAt: sql`coalesce(${resources.publishedAt}, now())` as unknown as Date } : {}),
+      ...(status === 'published'
+        ? { publishedAt: sql`coalesce(${resources.publishedAt}, now())` as unknown as Date }
+        : {}),
       ...(status === 'archived' ? { archivedAt: now } : {}),
     })
     .where(eq(resources.id, id));
@@ -243,8 +306,13 @@ export async function deleteResource(ctx: ServiceContext, actor: Actor, id: stri
     columns: { id: true, title: true, slug: true, status: true, thumbnailId: true },
   });
   if (!row) throw AppError.notFound('Resource');
-  const files = await ctx.db.select({ key: resourceFiles.storageKey }).from(resourceFiles).where(eq(resourceFiles.resourceId, id));
-  const thumb = row.thumbnailId ? await ctx.db.query.mediaAssets.findFirst({ where: eq(mediaAssets.id, row.thumbnailId) }) : null;
+  const files = await ctx.db
+    .select({ key: resourceFiles.storageKey })
+    .from(resourceFiles)
+    .where(eq(resourceFiles.resourceId, id));
+  const thumb = row.thumbnailId
+    ? await ctx.db.query.mediaAssets.findFirst({ where: eq(mediaAssets.id, row.thumbnailId) })
+    : null;
   await ctx.db.transaction(async (tx) => {
     await tx.update(resources).set({ fileId: null, thumbnailId: null }).where(eq(resources.id, id));
     await tx.delete(resources).where(eq(resources.id, id));
@@ -263,8 +331,17 @@ export async function deleteResource(ctx: ServiceContext, actor: Actor, id: stri
 }
 
 /** Uploads a new file version and makes it the current public file. */
-export async function replaceResourceFile(ctx: ServiceContext, actor: Actor, id: string, upload: TemporaryUpload, notes?: string) {
-  const row = await ctx.db.query.resources.findFirst({ where: eq(resources.id, id), columns: { id: true, title: true, slug: true, status: true } });
+export async function replaceResourceFile(
+  ctx: ServiceContext,
+  actor: Actor,
+  id: string,
+  upload: TemporaryUpload,
+  notes?: string,
+) {
+  const row = await ctx.db.query.resources.findFirst({
+    where: eq(resources.id, id),
+    columns: { id: true, title: true, slug: true, status: true },
+  });
   if (!row) {
     await ctx.storage.delete(upload.tempKey);
     throw AppError.notFound('Resource');
@@ -274,8 +351,17 @@ export async function replaceResourceFile(ctx: ServiceContext, actor: Actor, id:
   const [{ next } = { next: 1 }] = await ctx.db.execute<{ next: number }>(
     sql`SELECT coalesce(max(version_number), 0)::int + 1 AS next FROM resource_versions WHERE resource_id = ${id}`,
   );
-  await ctx.db.insert(resourceVersions).values({ resourceId: id, versionNumber: next, fileId: file.id, createdById: actor.id, notes: notes?.slice(0, 500) ?? null });
-  await ctx.db.update(resources).set({ fileId: file.id, updatedById: actor.id || null }).where(eq(resources.id, id));
+  await ctx.db.insert(resourceVersions).values({
+    resourceId: id,
+    versionNumber: next,
+    fileId: file.id,
+    createdById: actor.id,
+    notes: notes?.slice(0, 500) ?? null,
+  });
+  await ctx.db
+    .update(resources)
+    .set({ fileId: file.id, updatedById: actor.id || null })
+    .where(eq(resources.id, id));
   await recordAudit(ctx, actor, {
     action: 'resource.replace_file',
     entityType: 'resource',
@@ -288,15 +374,27 @@ export async function replaceResourceFile(ctx: ServiceContext, actor: Actor, id:
   return getAdminResource(ctx, id);
 }
 
-export async function setCurrentVersion(ctx: ServiceContext, actor: Actor, id: string, versionId: string) {
+export async function setCurrentVersion(
+  ctx: ServiceContext,
+  actor: Actor,
+  id: string,
+  versionId: string,
+) {
   const version = await ctx.db.query.resourceVersions.findFirst({
     where: and(eq(resourceVersions.id, versionId), eq(resourceVersions.resourceId, id)),
     with: { file: { columns: { id: true, scanStatus: true, isMissing: true } } },
   });
   if (!version) throw AppError.notFound('Version');
-  if (version.file.scanStatus === 'infected' || version.file.isMissing) throw AppError.badRequest('That version cannot be made public.');
-  const row = await ctx.db.query.resources.findFirst({ where: eq(resources.id, id), columns: { title: true, slug: true, status: true } });
-  await ctx.db.update(resources).set({ fileId: version.fileId, updatedById: actor.id || null }).where(eq(resources.id, id));
+  if (version.file.scanStatus === 'infected' || version.file.isMissing)
+    throw AppError.badRequest('That version cannot be made public.');
+  const row = await ctx.db.query.resources.findFirst({
+    where: eq(resources.id, id),
+    columns: { title: true, slug: true, status: true },
+  });
+  await ctx.db
+    .update(resources)
+    .set({ fileId: version.fileId, updatedById: actor.id || null })
+    .where(eq(resources.id, id));
   await recordAudit(ctx, actor, {
     action: 'resource.set_version',
     entityType: 'resource',
@@ -375,7 +473,10 @@ export async function getAdminResource(ctx: ServiceContext, id: string) {
 }
 export type AdminResourceDetail = Awaited<ReturnType<typeof getAdminResource>>;
 
-export async function listAdminResources(ctx: ServiceContext, q: AdminListQuery): Promise<Paginated<AdminResourceRow>> {
+export async function listAdminResources(
+  ctx: ServiceContext,
+  q: AdminListQuery,
+): Promise<Paginated<AdminResourceRow>> {
   const where: SQL[] = [];
   if (q.status) where.push(eq(resources.status, q.status));
   if (q.classId) where.push(eq(resources.classId, q.classId));
@@ -383,7 +484,13 @@ export async function listAdminResources(ctx: ServiceContext, q: AdminListQuery)
   if (q.resourceTypeId) where.push(eq(resources.resourceTypeId, q.resourceTypeId));
   if (q.q) {
     const like = `%${q.q.replace(/[%_]/g, '')}%`;
-    where.push(or(ilike(resources.title, like), ilike(resources.slug, like), ilike(resourceFiles.originalName, like))!);
+    where.push(
+      or(
+        ilike(resources.title, like),
+        ilike(resources.slug, like),
+        ilike(resourceFiles.originalName, like),
+      )!,
+    );
   }
   const order =
     q.sort === 'newest'
@@ -451,8 +558,15 @@ export async function bulkResourceAction(
   for (const id of ids) {
     try {
       if (action === 'delete') await deleteResource(ctx, actor, id);
-      else if (action === 'feature' || action === 'unfeature') await updateResource(ctx, actor, id, { featured: action === 'feature' });
-      else await setResourceStatus(ctx, actor, id, action === 'publish' ? 'published' : action === 'unpublish' ? 'unpublished' : 'archived');
+      else if (action === 'feature' || action === 'unfeature')
+        await updateResource(ctx, actor, id, { featured: action === 'feature' });
+      else
+        await setResourceStatus(
+          ctx,
+          actor,
+          id,
+          action === 'publish' ? 'published' : action === 'unpublish' ? 'unpublished' : 'archived',
+        );
       results.push({ id, ok: true });
     } catch (err) {
       results.push({ id, ok: false, error: err instanceof Error ? err.message : 'Failed' });

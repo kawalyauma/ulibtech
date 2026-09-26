@@ -4,7 +4,8 @@ const apiUrl = (process.env.API_INTERNAL_URL ?? 'http://localhost:4000').replace
 
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'" + (process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''),
+  "script-src 'self' 'unsafe-inline'" +
+    (process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''),
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
@@ -22,12 +23,16 @@ const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'X-Frame-Options', value: 'DENY' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()' },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+  },
 ];
 
 const config: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
+  distDir: process.env.NEXT_DIST_DIR ?? '.next',
   agentRules: false,
   reactStrictMode: true,
   compress: true,
@@ -39,8 +44,17 @@ const config: NextConfig = {
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },
-      { source: '/pdfjs/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
-      { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'no-cache' }, { key: 'Service-Worker-Allowed', value: '/' }] },
+      {
+        source: '/pdfjs/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
     ];
   },
   async redirects() {

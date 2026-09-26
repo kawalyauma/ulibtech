@@ -19,3 +19,5 @@ blob-report/
 apps/web/public/pdfjs/
 next-env.d.ts
 .DS_Store
+.next-*/
+*.tmp.mjs

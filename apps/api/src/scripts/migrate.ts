@@ -9,7 +9,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is required');
-  const folder = process.env.MIGRATIONS_DIR ?? path.resolve(here, '../../../packages/database/drizzle');
+  const folder =
+    process.env.MIGRATIONS_DIR ?? path.resolve(here, '../../../packages/database/drizzle');
   const { db, sql } = createDb(url, { max: 1 });
   try {
     await migrate(db, { migrationsFolder: folder });
