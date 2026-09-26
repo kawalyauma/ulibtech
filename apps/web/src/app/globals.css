@@ -1,0 +1,11 @@
+@import 'tailwindcss';
+@import '@edushare/ui/styles.css';
+@source '../../../../packages/ui/src';
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+}
