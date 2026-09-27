@@ -10,14 +10,21 @@ const assetOrigin = /^https?:\/\//.test(process.env.ASSET_PREFIX ?? '')
   ? new URL(process.env.ASSET_PREFIX!).origin
   : '';
 
+// Google AdSense (ADSENSE_CLIENT_ID=ca-pub-…) loads scripts, frames, pixels and beacons from
+// many rotating Google domains (including country domains), so with ads enabled the policy
+// allows any HTTPS origin for those directives, as Google recommends. Baked in at build time.
+const ads = /^ca-pub-\d+$/.test(process.env.ADSENSE_CLIENT_ID ?? '');
+const adSources = ads ? ' https:' : '';
+
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' ${assetOrigin}`.trim() +
+  `script-src 'self' 'unsafe-inline' ${assetOrigin}${adSources}`.replace(/\s+/g, ' ').trim() +
     (process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''),
   `style-src 'self' 'unsafe-inline' ${assetOrigin}`.trim(),
-  `img-src 'self' data: blob: ${mediaOrigin}`.trim(),
+  `img-src 'self' data: blob: ${mediaOrigin}${adSources}`.replace(/\s+/g, ' ').trim(),
   "font-src 'self' data:",
-  "connect-src 'self'",
+  `connect-src 'self'${adSources}`,
+  ...(ads ? ['frame-src https:', 'fenced-frame-src https:'] : []),
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",

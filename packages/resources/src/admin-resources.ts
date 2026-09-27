@@ -128,6 +128,7 @@ export async function createResourceFromUpload(
   actor: Actor,
   upload: TemporaryUpload,
   input: ResourceMetadataInput,
+  extra: { suggestions?: Record<string, unknown> } = {},
 ) {
   const file = await ingestUpload(ctx, actor, upload);
   const slug = await uniqueResourceSlug(ctx.db, input.slug ?? input.title);
@@ -153,6 +154,7 @@ export async function createResourceFromUpload(
         fileId: file.id,
         createdById: actor.id,
         updatedById: actor.id || null,
+        ...(extra.suggestions ? { suggestions: extra.suggestions } : {}),
       })
       .returning();
     if (!row) throw new Error('Failed to create resource');

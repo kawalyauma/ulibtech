@@ -35,6 +35,13 @@ x-app-env: &app-env
   OCR_ENABLED: ${OCR_ENABLED:-false}
   AI_ENRICH_ENABLED: ${AI_ENRICH_ENABLED:-false}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  # AI through a self-hosted Ledgerly server (API key with the ai:write scope).
+  LEDGERLY_AI_URL: ${LEDGERLY_AI_URL:-}
+  LEDGERLY_AI_API_KEY: ${LEDGERLY_AI_API_KEY:-}
+  # Apply AI results to zip imports and publish those that pass the quality checks.
+  AI_AUTOPILOT: ${AI_AUTOPILOT:-false}
+  ZIP_MAX_MB: ${ZIP_MAX_MB:-2048}
+  ADSENSE_CLIENT_ID: ${ADSENSE_CLIENT_ID:-}
   SESSION_IDLE_MINUTES: ${SESSION_IDLE_MINUTES:-120}
   SESSION_ABSOLUTE_HOURS: ${SESSION_ABSOLUTE_HOURS:-12}
 
@@ -129,6 +136,7 @@ services:
       args:
         PUBLIC_SITE_URL: https://${PUBLIC_DOMAIN}
         SITE_NAME: ${SITE_NAME:-EduShare Uganda}
+        ADSENSE_CLIENT_ID: ${ADSENSE_CLIENT_ID:-}
     image: edushare-web:latest
     restart: unless-stopped
     environment: *app-env

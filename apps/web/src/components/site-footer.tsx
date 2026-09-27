@@ -31,6 +31,15 @@ export function SiteFooter({ note }: { note?: string | null }) {
           <Link href="/about" className="text-muted-foreground hover:text-foreground">
             About {SITE_NAME}
           </Link>
+          <Link href="/contact" className="text-muted-foreground hover:text-foreground">
+            Contact us
+          </Link>
+          <Link href="/privacy" className="text-muted-foreground hover:text-foreground">
+            Privacy policy
+          </Link>
+          <Link href="/terms" className="text-muted-foreground hover:text-foreground">
+            Terms of use
+          </Link>
           <a href="/sitemap.xml" className="text-muted-foreground hover:text-foreground">
             Sitemap
           </a>

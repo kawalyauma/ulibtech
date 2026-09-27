@@ -66,6 +66,9 @@ CMD ["node", "dist/index.js"]
 FROM deps AS build-web
 ARG PUBLIC_SITE_URL=https://edushare.example
 ARG SITE_NAME="EduShare Uganda"
+# Google AdSense publisher id; also widens the CSP for ad domains (see next.config.ts).
+ARG ADSENSE_CLIENT_ID=""
+ENV ADSENSE_CLIENT_ID=${ADSENSE_CLIENT_ID}
 ENV PUBLIC_SITE_URL=$PUBLIC_SITE_URL SITE_NAME=$SITE_NAME
 RUN pnpm --filter @edushare/web build
 

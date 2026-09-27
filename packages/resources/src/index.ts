@@ -16,5 +16,8 @@ export * from './home';
 export * from './sitemap';
 export * from './classify';
 export * from './ai';
+export * from './ai-ledgerly';
+export * from './autopilot';
+export * from './zip-import';
 export * from './reports';
 export * from './import';

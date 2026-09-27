@@ -6,11 +6,13 @@ import { useState } from 'react';
 import {
   BarChart3,
   BookOpen,
+  FileArchive,
   FileSpreadsheet,
   FileStack,
   FolderTree,
   Home,
   LayoutDashboard,
+  Library,
   LogOut,
   Menu,
   ScrollText,
@@ -19,7 +21,6 @@ import {
   Tags,
   Upload,
   Users,
-  Library,
 } from 'lucide-react';
 import type { Permission } from '@edushare/shared';
 import { cn } from '@edushare/ui';
@@ -41,6 +42,12 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { label: 'Resources', href: '/resources', icon: FileStack, perm: 'resources.read' },
       { label: 'Upload', href: '/resources/new', icon: Upload, perm: 'resources.create' },
       { label: 'Bulk upload', href: '/uploads', icon: Upload, perm: 'resources.create' },
+      {
+        label: 'Zip import (AI)',
+        href: '/uploads/zip',
+        icon: FileArchive,
+        perm: 'resources.create',
+      },
       {
         label: 'Spreadsheet import',
         href: '/uploads/import',

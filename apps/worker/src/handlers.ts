@@ -8,8 +8,10 @@ import {
   enrichResource,
   noResultReport,
   processFile,
+  runZipImport,
   type ServiceContext,
 } from '@edushare/resources';
+import { getRedis } from '@edushare/cache';
 import { getServerEnv } from '@edushare/shared';
 
 type Handler<N extends JobName> = (data: JobPayloads[N], job: Job) => Promise<unknown>;
@@ -79,6 +81,26 @@ export function createHandlers(ctx: ServiceContext): { [N in JobName]: Handler<N
       return { removed };
     },
     'ai-enrich': async (data) => enrichResource(ctx, data.resourceId),
+    'import-zip': async (data) => {
+      const env = getServerEnv();
+      const batch = await runZipImport(ctx, getRedis(), {
+        batchId: data.batchId,
+        tempKey: data.tempKey,
+        actor: { id: data.actorId, name: data.actorName, permissions: [] },
+        maxFileBytes: env.MAX_UPLOAD_MB * 1024 * 1024,
+      });
+      if (batch.status === 'failed' || batch.failed > 0) {
+        await getNotifier().notifyAdmins({
+          subject: `Zip import "${batch.fileName}" ${batch.status === 'failed' ? 'failed' : 'finished with errors'}`,
+          body:
+            batch.error ??
+            `${batch.created} imported, ${batch.skipped} skipped, ${batch.failed} failed.`,
+          severity: batch.status === 'failed' ? 'error' : 'warning',
+          meta: { batchId: batch.id },
+        });
+      }
+      return { created: batch.created, skipped: batch.skipped, failed: batch.failed };
+    },
     'no-result-report': async (data) => {
       const report = await noResultReport(ctx, data.days ?? 7);
       if (report.items.length) {

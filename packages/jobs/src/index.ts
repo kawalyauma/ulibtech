@@ -6,6 +6,10 @@ export const QUEUES = {
   processing: 'resource-processing',
   indexing: 'search-indexing',
   maintenance: 'maintenance',
+  /** AI calls are slow (seconds to minutes), so they never block file processing. */
+  ai: 'ai-enrichment',
+  /** Zip imports unpack many files; one at a time keeps disk and memory use flat. */
+  imports: 'zip-imports',
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
@@ -27,6 +31,8 @@ export interface JobPayloads {
   'ai-enrich': { resourceId: string };
   /** Weekly digest of searches that returned no results. */
   'no-result-report': { days?: number };
+  /** Unpack an uploaded zip into draft resources (AI then classifies and publishes them). */
+  'import-zip': { batchId: string; tempKey: string; actorId: string; actorName: string };
 }
 export type JobName = keyof JobPayloads;
 
@@ -41,8 +47,9 @@ export const JOB_QUEUE: Record<JobName, QueueName> = {
   'cleanup-temporary': QUEUES.maintenance,
   'delete-storage-objects': QUEUES.maintenance,
   'refresh-sitemap': QUEUES.maintenance,
-  'ai-enrich': QUEUES.processing,
+  'ai-enrich': QUEUES.ai,
   'no-result-report': QUEUES.maintenance,
+  'import-zip': QUEUES.imports,
 };
 
 const defaultJobOptions: JobsOptions = {

@@ -43,6 +43,9 @@ const concurrency: Record<string, number> = {
   [QUEUES.processing]: Number(process.env.WORKER_PROCESSING_CONCURRENCY ?? 2),
   [QUEUES.indexing]: 4,
   [QUEUES.maintenance]: 2,
+  // One AI call at a time: Ledgerly's provider queue is shared with its own users.
+  [QUEUES.ai]: Number(process.env.WORKER_AI_CONCURRENCY ?? 1),
+  [QUEUES.imports]: 1,
 };
 
 const workers = Object.values(QUEUES).map(

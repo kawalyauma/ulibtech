@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { websiteJsonLd, organizationJsonLd } from '@edushare/seo';
-import { SITE_NAME, SITE_URL } from '@/lib/config';
+import { ADSENSE_CLIENT_ID, SITE_NAME, SITE_URL } from '@/lib/config';
 import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
 import { BottomNav } from '@/components/bottom-nav';
@@ -28,6 +29,8 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
   },
   formatDetection: { telephone: false },
+  // Lets Google AdSense verify site ownership.
+  ...(ADSENSE_CLIENT_ID ? { other: { 'google-adsense-account': ADSENSE_CLIENT_ID } } : {}),
   appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: 'default' },
   icons: {
     icon: [
@@ -68,6 +71,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteFooter />
         <BottomNav />
         <ServiceWorker />
+        {ADSENSE_CLIENT_ID ? (
+          // Auto ads: placements are chosen in the AdSense dashboard, not hard-coded here.
+          <Script
+            id="adsense"
+            async
+            strategy="afterInteractive"
+            crossOrigin="anonymous"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
+          />
+        ) : null}
       </body>
     </html>
   );

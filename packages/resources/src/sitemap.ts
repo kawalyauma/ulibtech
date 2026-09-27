@@ -48,6 +48,9 @@ export async function getSitemapUrls(
       { loc: '/popular', changefreq: 'daily', priority: 0.6 },
       { loc: '/new', changefreq: 'daily', priority: 0.6 },
       { loc: '/about', changefreq: 'yearly', priority: 0.3 },
+      { loc: '/contact', changefreq: 'yearly', priority: 0.3 },
+      { loc: '/privacy', changefreq: 'yearly', priority: 0.2 },
+      { loc: '/terms', changefreq: 'yearly', priority: 0.2 },
     ];
   }
   if (name === 'classes') {

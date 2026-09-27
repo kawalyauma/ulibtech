@@ -48,9 +48,12 @@ export async function bootTestApp(processOptions: ProcessOptions = {}) {
   const { createServices } = await import('../src/services');
   const { createApp } = await import('../src/app');
   const jobs: string[] = [];
+  /** Payloads of every enqueued job, for tests that run other jobs by hand. */
+  const queued: { name: string; data: unknown }[] = [];
   const services = createServices({
     enqueue: async (name, data) => {
       jobs.push(name);
+      queued.push({ name, data });
       if (name === 'process-file')
         await processFile(services.ctx, (data as { fileId: string }).fileId, processOptions);
       return true;
@@ -87,6 +90,7 @@ export async function bootTestApp(processOptions: ProcessOptions = {}) {
     admin,
     json,
     jobs,
+    queued,
     storageRoot,
     enrichResource,
     async close() {

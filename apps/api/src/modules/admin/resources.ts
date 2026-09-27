@@ -1,10 +1,13 @@
 import { Hono } from 'hono';
 import sharp from 'sharp';
-import { eq } from '@edushare/database';
+import { eq, inArray } from '@edushare/database';
 import { mediaAssets, resources } from '@edushare/database/schema';
 import {
   bulkResourceAction,
   createResourceFromUpload,
+  createZipBatch,
+  getZipBatch,
+  listZipBatches,
   deleteResource,
   findDuplicates,
   getAdminResource,
@@ -133,6 +136,96 @@ export function adminResourceRoutes(services: Services) {
       }
     }
     return c.json({ results }, 201);
+  });
+
+  // ---------------------------------------------------------------- zip import
+  // One zip of documents; the worker unpacks it and each file goes through processing, AI
+  // enrichment and (with AI_AUTOPILOT=true) automatic publishing when it passes quality checks.
+  const zipMaxBytes = Number(process.env.ZIP_MAX_MB ?? 2048) * 1024 * 1024;
+  app.post('/zip-import', requirePermission('resources.create'), async (c) => {
+    const len = Number(c.req.header('content-length') ?? 0);
+    if (len && len > zipMaxBytes + 1024 * 1024)
+      throw new AppError(
+        'PAYLOAD_TOO_LARGE',
+        `Zip files are limited to ${zipMaxBytes / 1024 / 1024} MB.`,
+      );
+    const { files } = await parseMultipart(c, ctx.storage, {
+      maxFileBytes: zipMaxBytes,
+      maxFiles: 1,
+    });
+    const file = files[0];
+    if (!file) throw AppError.badRequest('Choose a .zip file to import.');
+    if (!/\.zip$/i.test(file.originalName)) {
+      await ctx.storage.delete(file.tempKey).catch(() => undefined);
+      throw new AppError('UNSUPPORTED_MEDIA_TYPE', 'Only .zip files can be imported here.');
+    }
+    const actor = actorOf(c);
+    const batch = await createZipBatch(services.redis, file.originalName, actor);
+    const queued = await ctx.enqueue('import-zip', {
+      batchId: batch.id,
+      tempKey: file.tempKey,
+      actorId: actor.id,
+      actorName: actor.name,
+    });
+    if (!queued) {
+      await ctx.storage.delete(file.tempKey).catch(() => undefined);
+      throw new AppError('INTERNAL', 'The import queue is unavailable. Try again shortly.');
+    }
+    await recordAudit(ctx, actor, {
+      action: 'resource.zip_import',
+      entityType: 'import',
+      entityId: batch.id,
+      entityLabel: file.originalName,
+      changes: { sizeBytes: file.sizeBytes },
+    });
+    return c.json({ batch }, 202);
+  });
+
+  app.get('/zip-imports', requirePermission('resources.read'), async (c) =>
+    c.json({ items: await listZipBatches(services.redis) }),
+  );
+
+  app.get('/zip-imports/:batchId', requirePermission('resources.read'), async (c) => {
+    const batch = await getZipBatch(services.redis, c.req.param('batchId'));
+    if (!batch) throw AppError.notFound('Import');
+    // Live state of each created resource: status plus the autopilot's decision.
+    const ids = batch.items.flatMap((i) => (i.resourceId ? [i.resourceId] : []));
+    const rows = ids.length
+      ? await ctx.db
+          .select({
+            id: resources.id,
+            title: resources.title,
+            slug: resources.slug,
+            status: resources.status,
+            suggestions: resources.suggestions,
+          })
+          .from(resources)
+          .where(inArray(resources.id, ids))
+      : [];
+    const byId = new Map(
+      rows.map((r) => {
+        const autopilot = (r.suggestions ?? {}).autopilot as
+          { published: boolean; reasons: string[] } | undefined;
+        return [
+          r.id,
+          {
+            id: r.id,
+            title: r.title,
+            slug: r.slug,
+            status: r.status,
+            reasons: autopilot?.reasons ?? null,
+            checked: Boolean(autopilot),
+          },
+        ];
+      }),
+    );
+    return c.json({
+      batch,
+      resources: batch.items.map((i) => ({
+        ...i,
+        resource: i.resourceId ? (byId.get(i.resourceId) ?? null) : null,
+      })),
+    });
   });
 
   // ---------------------------------------------------------------- spreadsheet import

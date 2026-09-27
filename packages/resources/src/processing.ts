@@ -22,6 +22,7 @@ import {
 import { withLocalCopy } from '@edushare/storage';
 import { autoClassifyResource } from './classify';
 import { aiEnabled } from './ai';
+import { autopilotEnabled } from './autopilot';
 import type { AllowedFileKind } from '@edushare/shared';
 import { recordAudit } from './audit';
 import type { ServiceContext } from './context';
@@ -288,8 +289,9 @@ export async function processFile(
           } else if (resource.status === 'published') {
             await afterContentChange(ctx, [resource.slug]);
           }
-          // 8. Optional AI summary/classification suggestions
-          if (aiEnabled() && extraction.text.length > 200)
+          // 8. Optional AI summary/classification suggestions. With autopilot on, short-text
+          //    files are enqueued too so zip imports record why they were held back.
+          if (aiEnabled() && (extraction.text.length > 200 || autopilotEnabled()))
             await ctx.enqueue('ai-enrich', { resourceId: resource.id });
         }
       }
