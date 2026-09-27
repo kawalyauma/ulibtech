@@ -127,6 +127,21 @@ The admin *Settings* page shows which optional features are active on the server
 
 ## Production deployment (Ubuntu/Debian + Docker Compose)
 
+**One command from your computer** (fresh Ubuntu server, e.g. AWS Lightsail with at least 2 GB RAM;
+open ports 22, 80 and 443 in the instance firewall first):
+
+```bash
+scripts/lightsail-deploy.sh ~/Downloads/LightsailDefaultKey-eu-central-1.pem ubuntu@<server-ip> you@school.ug [your-domain]
+```
+
+It uploads the committed code and runs `scripts/server-bootstrap.sh` on the server. That script adds swap,
+installs Docker, generates `.env` secrets, gets Let's Encrypt certificates, builds, starts the stack and
+creates the first administrator (it prints the password once). It also sets up certificate renewal and
+nightly backups. Without a domain it uses `<ip>.sslip.io` and `admin.<ip>.sslip.io`. Re-run the same
+command to deploy updates.
+
+Manual steps:
+
 ```bash
 sudo mkdir -p /opt/edushare/storage/{resources,thumbnails,previews,temporary,private} /opt/edushare/backups
 sudo chown -R 1000:1000 /opt/edushare/storage        # containers run as the `node` user (uid 1000)
