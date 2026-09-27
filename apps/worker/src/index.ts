@@ -1,6 +1,7 @@
 import { Worker, type Job } from 'bullmq';
 import { Cache, closeRedis, createRedis, getRedis } from '@edushare/cache';
 import { closeDb, getDb } from '@edushare/database';
+import { detectDocumentCapabilities, WORKER_CAPABILITIES_KEY } from '@edushare/documents';
 import { closeQueues, enqueue, getQueue, QUEUES, type JobName } from '@edushare/jobs';
 import type { ServiceContext } from '@edushare/resources';
 import { createSearchProvider } from '@edushare/search';
@@ -101,12 +102,25 @@ async function schedule() {
   );
 }
 
+/** Tells the admin dashboard which document tools this worker has (refreshed every 10 min). */
+async function publishCapabilities() {
+  try {
+    const caps = await detectDocumentCapabilities();
+    await getRedis().set(WORKER_CAPABILITIES_KEY, JSON.stringify(caps), 'EX', 30 * 60);
+  } catch (err) {
+    console.error('[worker] could not publish capabilities', err);
+  }
+}
+void publishCapabilities();
+const capabilitiesTimer = setInterval(() => void publishCapabilities(), 10 * 60_000);
+
 schedule()
   .then(() => console.log(`[worker] started (${workers.length} queues)`))
   .catch((err: unknown) => console.error('[worker] failed to register schedules', err));
 
 async function shutdown(signal: string) {
   console.log(`[worker] ${signal} received, draining`);
+  clearInterval(capabilitiesTimer);
   await Promise.allSettled(workers.map((w) => w.close()));
   await Promise.allSettled([closeQueues(), closeRedis(), closeDb()]);
   process.exit(0);

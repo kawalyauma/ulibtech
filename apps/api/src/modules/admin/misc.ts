@@ -25,7 +25,11 @@ import {
   seoSuggestions,
   toCsv,
 } from '@edushare/resources';
-import { findLibreOffice, findTesseract } from '@edushare/documents';
+import {
+  detectDocumentCapabilities,
+  WORKER_CAPABILITIES_KEY,
+  type DocumentCapabilities,
+} from '@edushare/documents';
 import {
   AppError,
   adminCreateSchema,
@@ -195,12 +199,20 @@ export function adminMiscRoutes(services: Services) {
   );
 
   app.get('/system/features', requirePermission('resources.read'), async (c) => {
-    const [libreoffice, tesseract] = await Promise.all([findLibreOffice(), findTesseract()]);
+    // Office conversion and OCR run in the worker, so prefer what the worker reports.
+    let docs: DocumentCapabilities | null = null;
+    try {
+      const raw = await services.redis.get(WORKER_CAPABILITIES_KEY);
+      docs = raw ? (JSON.parse(raw) as DocumentCapabilities) : null;
+    } catch {
+      docs = null;
+    }
+    docs ??= await detectDocumentCapabilities();
     return c.json({
       search: process.env.SEARCH_PROVIDER ?? 'postgres',
       storage: process.env.STORAGE_DRIVER ?? 'local',
-      officePreviews: Boolean(libreoffice),
-      ocr: process.env.OCR_ENABLED === 'true' && Boolean(tesseract),
+      officePreviews: docs.officePreviews,
+      ocr: docs.ocr,
       ai: aiEnabled(),
     });
   });

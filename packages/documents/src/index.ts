@@ -4,3 +4,4 @@ export * from './thumbnails';
 export * from './scanner';
 export * from './office';
 export * from './ocr';
+export * from './capabilities';
