@@ -154,3 +154,37 @@ export function correctQuery(normalized: string, lexicon: string[]): string | nu
   });
   return changed ? out.join(' ') : null;
 }
+
+/**
+ * Vocabulary landing pages (classes, subjects, resource types, syllabus topics) whose label,
+ * name or phrases match every query token by prefix. These pages exist even before any
+ * resource is published, so suggestions work on a new site.
+ */
+export function vocabularySuggestions(
+  v: Vocabulary,
+  tokens: string[],
+  limit: number,
+): { text: string; href: string }[] {
+  if (!tokens.length) return [];
+  const groups: [VocabEntry[], (e: VocabEntry) => string][] = [
+    [v.classes, (e) => `/classes/${e.slug}`],
+    [v.subjects, (e) => `/subjects/${e.slug}`],
+    [v.types, (e) => `/${e.slug}`],
+    [v.topics, (e) => `/topics/${e.slug}`],
+  ];
+  const scored: { text: string; href: string; score: number }[] = [];
+  groups.forEach(([entries, href], rank) => {
+    for (const e of entries) {
+      const words = normalizeQuery([e.label, e.name, ...e.phrases].join(' ')).split(' ');
+      if (!tokens.every((tok) => words.some((w) => w.startsWith(tok)))) continue;
+      const label = normalizeQuery(e.label);
+      // Exact and prefix label matches first, then by vocabulary kind, then shorter labels.
+      const exact = label === tokens.join(' ') ? 0 : label.startsWith(tokens[0]!) ? 1 : 2;
+      scored.push({ text: e.label, href: href(e), score: exact * 10 + rank });
+    }
+  });
+  return scored
+    .sort((a, b) => a.score - b.score || a.text.length - b.text.length)
+    .slice(0, limit)
+    .map(({ text, href }) => ({ text, href }));
+}

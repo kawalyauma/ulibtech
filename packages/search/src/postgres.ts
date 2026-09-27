@@ -17,6 +17,7 @@ import {
   parseQuery,
   type ParsedQuery,
   type Vocabulary,
+  vocabularySuggestions,
 } from './vocabulary';
 import { loadVocabulary } from './vocabulary-loader';
 
@@ -601,6 +602,9 @@ export class PostgresSearchProvider implements SearchProvider {
           href: `/search?q=${encodeURIComponent(p.normalized)}`,
           kind: 'query',
         });
+      // Fill remaining slots with vocabulary pages so a new or sparse site still suggests.
+      for (const s of vocabularySuggestions(v, tokens, limit))
+        push({ text: s.text, href: s.href, kind: 'landing' });
       return out;
     };
     return this.options.cache
