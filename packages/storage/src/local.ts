@@ -58,7 +58,10 @@ export class LocalFilesystemStorageProvider implements StorageProvider {
     const tmp = `${target}.${randomUUID()}.part`;
     try {
       const source = Buffer.isBuffer(body) ? Readable.from([body]) : body;
-      await pipeline(source, createWriteStream(tmp, { flags: 'wx', mode: 0o640 }));
+      // World-readable: Nginx (a different user) serves thumbnails directly and streams
+      // downloads/previews via X-Accel-Redirect. Access control lives in Nginx `internal`
+      // locations and the API, not in file modes.
+      await pipeline(source, createWriteStream(tmp, { flags: 'wx', mode: 0o644 }));
       await fs.rename(tmp, target);
     } catch (err) {
       await fs.rm(tmp, { force: true });
