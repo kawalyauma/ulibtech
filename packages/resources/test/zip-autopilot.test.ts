@@ -33,7 +33,13 @@ describe('autopilot quality gate', () => {
   const good = {
     textLength: 5000,
     suggestion: {
-      quality: { isEducational: true, safeForAds: true, containsPersonalData: false, notes: null },
+      quality: {
+        isEducational: true,
+        safeForAds: true,
+        containsPersonalData: false,
+        commercialPublication: false,
+        notes: null,
+      },
     },
     description: Array.from({ length: 70 }, (_, i) => `word${i}`).join(' '),
     classified: { classId: 'c', subjectId: 's', resourceTypeId: 't' },
@@ -54,6 +60,7 @@ describe('autopilot quality gate', () => {
           isEducational: false,
           safeForAds: false,
           containsPersonalData: true,
+          commercialPublication: true,
           notes: 'class list',
         },
       },
@@ -62,7 +69,8 @@ describe('autopilot quality gate', () => {
       duplicateOfPublished: true,
       scanStatus: 'pending',
     });
-    expect(reasons).toHaveLength(9);
+    expect(reasons).toHaveLength(10);
+    expect(reasons.join(' ')).toMatch(/commercially published/);
     expect(reasons.join(' ')).toMatch(/thin content/);
     expect(reasons.join(' ')).toMatch(/personal data/);
     expect(reasons.join(' ')).toMatch(/duplicate/);

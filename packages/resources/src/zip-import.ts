@@ -43,8 +43,8 @@ export interface ZipImportBatch {
 const KEY = (id: string) => `es:zip-import:${id}`;
 const LIST_KEY = 'es:zip-imports';
 const TTL_SECONDS = 30 * 24 * 3600;
-const MAX_ENTRIES = 3000;
-const MAX_ITEMS_KEPT = 3000;
+const MAX_ENTRIES = 10_000;
+const MAX_ITEMS_KEPT = 10_000;
 
 const EXTENSIONS = new Set<string>(
   Object.values(ALLOWED_FILE_TYPES).flatMap((t) => [...t.extensions]),
@@ -160,8 +160,33 @@ export async function runZipImport(
     ...(await createZipBatch(redis, 'upload.zip', job.actor)),
     id: job.batchId,
   };
+  // A queue retry after the import already finished must not redo or break it.
+  if (batch.status === 'done') return batch;
+  // Resuming after a crash or lost job lock: skip entries that were already handled.
+  const handled = new Set(batch.items.map((i) => i.path));
+  if (!(await ctx.storage.exists(job.tempKey))) {
+    if (handled.size) batch.status = 'done';
+    else {
+      batch.status = 'failed';
+      batch.error = 'The uploaded zip is no longer available; upload it again.';
+    }
+    await saveZipBatch(redis, batch);
+    return batch;
+  }
   batch.status = 'extracting';
+  delete batch.error;
   await saveZipBatch(redis, batch);
+
+  // Progress is saved every few files rather than after each one (batches hold thousands).
+  let lastSave = Date.now();
+  let unsaved = 0;
+  const progress = async (force = false) => {
+    if (!force && ++unsaved < 10 && Date.now() - lastSave < 5_000) return;
+    await saveZipBatch(redis, batch);
+    unsaved = 0;
+    lastSave = Date.now();
+  };
+
   try {
     await withLocalCopy(ctx.storage, job.tempKey, async (zipPath) => {
       const zip = await openZip(zipPath);
@@ -180,10 +205,12 @@ export async function runZipImport(
             batch.skipped++;
             break;
           }
+          if (handled.has(entryPath)) continue;
           batch.total++;
           if (reason) {
             batch.items.push({ path: entryPath, status: 'skipped', reason });
             batch.skipped++;
+            await progress();
             continue;
           }
           const result = await importEntry(ctx, zip, entry, entryPath, job, batch.id);
@@ -191,20 +218,20 @@ export async function runZipImport(
           if (result.status === 'created') batch.created++;
           else if (result.status === 'skipped') batch.skipped++;
           else batch.failed++;
-          await saveZipBatch(redis, batch);
+          await progress();
         }
       } finally {
         zip.close();
       }
     });
     batch.status = 'done';
+    // Only a finished import frees the zip; a failed one keeps it so it can be retried.
+    await ctx.storage.delete(job.tempKey).catch(() => undefined);
   } catch (err) {
     batch.status = 'failed';
     batch.error = (err as Error).message.slice(0, 500);
-  } finally {
-    await ctx.storage.delete(job.tempKey).catch(() => undefined);
   }
-  await saveZipBatch(redis, batch);
+  await progress(true);
   return batch;
 }
 

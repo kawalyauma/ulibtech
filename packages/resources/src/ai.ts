@@ -35,6 +35,8 @@ export interface AiQuality {
   isEducational: boolean;
   safeForAds: boolean;
   containsPersonalData: boolean;
+  /** Commercially published book/workbook (publisher, ISBN): copyright needs a human check. */
+  commercialPublication: boolean;
   notes: string | null;
 }
 
@@ -136,6 +138,11 @@ export async function enrichResource(
       .describe(
         "True if it lists real people's personal data: learner/parent names with phone numbers, marks, IDs or addresses",
       ),
+    isCommercialPublication: z
+      .boolean()
+      .describe(
+        "True if it is a commercially published book, textbook or workbook (a named publisher such as Oxford, Longman, MK or Fountain, an ISBN, or 'All rights reserved'), not teacher-made notes or exam papers",
+      ),
     qualityNotes: z.string().nullable().describe('Short reason if any check above fails'),
   });
   type Output = z.infer<typeof Schema>;
@@ -170,6 +177,8 @@ export async function enrichResource(
       safeForAds: 'boolean (false for adult, violent, hateful or shocking content)',
       containsPersonalData:
         "boolean (true if it lists real learners'/parents' names with phones, marks, IDs or addresses)",
+      isCommercialPublication:
+        "boolean (true for a commercially published book/textbook/workbook: named publisher, ISBN or 'All rights reserved'; false for teacher-made notes and exam papers)",
       qualityNotes: 'string or null (reason if a check fails)',
     };
     const { json, provider } = await ledgerlyCompleteJson(
@@ -191,6 +200,7 @@ export async function enrichResource(
       isEducational: z.boolean().catch(false),
       safeForAds: z.boolean().catch(false),
       containsPersonalData: z.boolean().catch(true),
+      isCommercialPublication: z.boolean().catch(true),
       qualityNotes: z.string().nullable().catch(null),
     });
     const loose = Loose.parse(json);
@@ -259,6 +269,9 @@ export async function enrichResource(
           isEducational: Boolean(o.isEducational),
           safeForAds: Boolean(o.safeForAds),
           containsPersonalData: Boolean(o.containsPersonalData),
+          // An ISBN in the text is a strong sign of a published book even if the model missed it.
+          commercialPublication:
+            Boolean(o.isCommercialPublication) || /\bISBN(?:-1[03])?[:\s]*[\d-]{10,17}/i.test(text),
           notes: o.qualityNotes ?? null,
         }
       : null,

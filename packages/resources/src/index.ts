@@ -19,5 +19,6 @@ export * from './ai';
 export * from './ai-ledgerly';
 export * from './autopilot';
 export * from './zip-import';
+export * from './zip-upload';
 export * from './reports';
 export * from './import';

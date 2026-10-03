@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream';
 import { Hono } from 'hono';
 import sharp from 'sharp';
 import { eq, inArray } from '@edushare/database';
@@ -5,9 +6,13 @@ import { mediaAssets, resources } from '@edushare/database/schema';
 import {
   bulkResourceAction,
   createResourceFromUpload,
+  completeZipUpload,
   createZipBatch,
+  createZipUpload,
   getZipBatch,
   listZipBatches,
+  putZipChunk,
+  zipUploadStatus,
   deleteResource,
   findDuplicates,
   getAdminResource,
@@ -141,7 +146,71 @@ export function adminResourceRoutes(services: Services) {
   // ---------------------------------------------------------------- zip import
   // One zip of documents; the worker unpacks it and each file goes through processing, AI
   // enrichment and (with AI_AUTOPILOT=true) automatic publishing when it passes quality checks.
-  const zipMaxBytes = Number(process.env.ZIP_MAX_MB ?? 2048) * 1024 * 1024;
+  const zipMaxBytes = Number(process.env.ZIP_MAX_MB ?? 4096) * 1024 * 1024;
+
+  const queueZipImport = async (
+    c: AppContext,
+    file: { tempKey: string; fileName: string; size: number },
+  ) => {
+    const actor = actorOf(c);
+    const batch = await createZipBatch(services.redis, file.fileName, actor);
+    const queued = await ctx.enqueue('import-zip', {
+      batchId: batch.id,
+      tempKey: file.tempKey,
+      actorId: actor.id,
+      actorName: actor.name,
+    });
+    if (!queued) {
+      await ctx.storage.delete(file.tempKey).catch(() => undefined);
+      throw new AppError('INTERNAL', 'The import queue is unavailable. Try again shortly.');
+    }
+    await recordAudit(ctx, actor, {
+      action: 'resource.zip_import',
+      entityType: 'import',
+      entityId: batch.id,
+      entityLabel: file.fileName,
+      changes: { sizeBytes: file.size },
+    });
+    return batch;
+  };
+
+  // Chunked, resumable upload (used by the admin UI): start → PUT each 16 MB chunk (retries
+  // are safe) → complete. Survives flaky connections that kill a single multi-GB request.
+  app.post('/zip-uploads', requirePermission('resources.create'), async (c) => {
+    const body = parse(
+      z.object({ fileName: z.string().min(1).max(255), size: z.number().int().positive() }),
+      await jsonBody(c),
+    );
+    const upload = await createZipUpload(
+      services.redis,
+      { ...body, maxBytes: zipMaxBytes },
+      actorOf(c),
+    );
+    return c.json({ upload }, 201);
+  });
+
+  app.get('/zip-uploads/:id', requirePermission('resources.create'), async (c) =>
+    c.json(await zipUploadStatus(services.redis, c.req.param('id'), actorOf(c))),
+  );
+
+  app.put('/zip-uploads/:id/chunks/:index', requirePermission('resources.create'), async (c) => {
+    const raw = c.req.raw.body;
+    if (!raw) throw AppError.badRequest('Empty chunk.');
+    const result = await putZipChunk(
+      ctx,
+      services.redis,
+      c.req.param('id'),
+      Number(c.req.param('index')),
+      Readable.fromWeb(raw as import('node:stream/web').ReadableStream),
+      actorOf(c),
+    );
+    return c.json(result);
+  });
+
+  app.post('/zip-uploads/:id/complete', requirePermission('resources.create'), async (c) => {
+    const file = await completeZipUpload(ctx, services.redis, c.req.param('id'), actorOf(c));
+    return c.json({ batch: await queueZipImport(c, file) }, 202);
+  });
   app.post('/zip-import', requirePermission('resources.create'), async (c) => {
     const len = Number(c.req.header('content-length') ?? 0);
     if (len && len > zipMaxBytes + 1024 * 1024)
@@ -159,24 +228,10 @@ export function adminResourceRoutes(services: Services) {
       await ctx.storage.delete(file.tempKey).catch(() => undefined);
       throw new AppError('UNSUPPORTED_MEDIA_TYPE', 'Only .zip files can be imported here.');
     }
-    const actor = actorOf(c);
-    const batch = await createZipBatch(services.redis, file.originalName, actor);
-    const queued = await ctx.enqueue('import-zip', {
-      batchId: batch.id,
+    const batch = await queueZipImport(c, {
       tempKey: file.tempKey,
-      actorId: actor.id,
-      actorName: actor.name,
-    });
-    if (!queued) {
-      await ctx.storage.delete(file.tempKey).catch(() => undefined);
-      throw new AppError('INTERNAL', 'The import queue is unavailable. Try again shortly.');
-    }
-    await recordAudit(ctx, actor, {
-      action: 'resource.zip_import',
-      entityType: 'import',
-      entityId: batch.id,
-      entityLabel: file.originalName,
-      changes: { sizeBytes: file.sizeBytes },
+      fileName: file.originalName,
+      size: file.sizeBytes,
     });
     return c.json({ batch }, 202);
   });

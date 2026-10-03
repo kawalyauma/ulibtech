@@ -19,6 +19,7 @@ const fakeClient = (quality: {
   isEducational: boolean;
   safeForAds: boolean;
   containsPersonalData: boolean;
+  isCommercialPublication?: boolean;
 }) => ({
   parse: async () => ({
     stop_reason: 'end_turn',
@@ -54,7 +55,10 @@ interface Detail {
 async function importZip(zip: JSZip, name: string) {
   const fd = new FormData();
   fd.set('zip', new Blob([new Uint8Array(await zip.generateAsync({ type: 'nodebuffer' }))]), name);
-  const res = await t.app.request('/api/admin/resources/zip-import', t.admin({ method: 'POST', body: fd }));
+  const res = await t.app.request(
+    '/api/admin/resources/zip-import',
+    t.admin({ method: 'POST', body: fd }),
+  );
   expect(res.status).toBe(202);
   const { batch } = (await res.json()) as { batch: { id: string } };
   const job = t.queued.findLast((j) => j.name === 'import-zip')!.data as {
@@ -92,7 +96,10 @@ describe('zip import', () => {
   it('rejects files that are not zips', async () => {
     const fd = new FormData();
     fd.set('zip', new Blob(['hello']), 'notes.txt');
-    const res = await t.app.request('/api/admin/resources/zip-import', t.admin({ method: 'POST', body: fd }));
+    const res = await t.app.request(
+      '/api/admin/resources/zip-import',
+      t.admin({ method: 'POST', body: fd }),
+    );
     expect(res.status).toBe(415);
   });
 
@@ -133,12 +140,19 @@ describe('zip import', () => {
 
   it('publishes an imported file when the AI checks pass', async () => {
     const zip = new JSZip();
-    zip.file('P6/Science/Past Papers/evaporation.pdf', await makePdf([...LONG, 'Evaporation paper']));
+    zip.file(
+      'P6/Science/Past Papers/evaporation.pdf',
+      await makePdf([...LONG, 'Evaporation paper']),
+    );
     const d = await importZip(zip, 'good.zip');
     const id = d.resources.find((r) => r.status === 'created')!.resourceId!;
 
     await t.enrichResource(t.services.ctx, id, {
-      client: fakeClient({ isEducational: true, safeForAds: true, containsPersonalData: false }) as never,
+      client: fakeClient({
+        isEducational: true,
+        safeForAds: true,
+        containsPersonalData: false,
+      }) as never,
     });
     const res = await t.app.request(`/api/admin/resources/${id}`, t.admin());
     const r = (await res.json()) as { status: string; title: string; description: string };
@@ -154,10 +168,104 @@ describe('zip import', () => {
     const id = d.resources.find((r) => r.status === 'created')!.resourceId!;
 
     await t.enrichResource(t.services.ctx, id, {
-      client: fakeClient({ isEducational: true, safeForAds: true, containsPersonalData: true }) as never,
+      client: fakeClient({
+        isEducational: true,
+        safeForAds: true,
+        containsPersonalData: true,
+      }) as never,
     });
     const item = (await batchDetail(d.batchId)).resources.find((r) => r.resourceId === id)!;
     expect(item.resource?.status).toBe('draft');
     expect(item.resource?.reasons?.join(' ')).toMatch(/personal data/);
+  });
+
+  it('holds back a commercially published book (ISBN in the text)', async () => {
+    const zip = new JSZip();
+    zip.file(
+      'P6/Science/Notes/textbook.pdf',
+      await makePdf([
+        ...LONG,
+        'Published by Example Press. ISBN 978-0-19-912345-6. All rights reserved.',
+      ]),
+    );
+    const d = await importZip(zip, 'book.zip');
+    const id = d.resources.find((r) => r.status === 'created')!.resourceId!;
+    await t.enrichResource(t.services.ctx, id, {
+      client: fakeClient({
+        isEducational: true,
+        safeForAds: true,
+        containsPersonalData: false,
+      }) as never,
+    });
+    const item = (await batchDetail(d.batchId)).resources.find((r) => r.resourceId === id)!;
+    expect(item.resource?.status).toBe('draft');
+    expect(item.resource?.reasons?.join(' ')).toMatch(/commercially published/);
+  });
+
+  it('treats a re-run of a finished import as done (no duplicates, no failure)', async () => {
+    const zip = new JSZip();
+    zip.file('S1/Biology/Notes/cells.pdf', await makePdf([...LONG, 'Cells']));
+    const d = await importZip(zip, 'rerun.zip');
+    expect(d.batch.status).toBe('done');
+    const job = t.queued.findLast((j) => j.name === 'import-zip')!.data as {
+      batchId: string;
+      tempKey: string;
+      actorId: string;
+      actorName: string;
+    };
+    const { runZipImport } = await import('@edushare/resources');
+    const { getRedis } = await import('@edushare/cache');
+    const again = await runZipImport(t.services.ctx, getRedis(), {
+      batchId: job.batchId,
+      tempKey: job.tempKey,
+      actor: { id: job.actorId, name: job.actorName, permissions: [] },
+      maxFileBytes: 50 * 1024 * 1024,
+    });
+    expect(again.status).toBe('done');
+    expect(again.created).toBe(1);
+    expect(again.failed).toBe(0);
+  });
+
+  it('accepts a zip uploaded in resumable chunks, including a retried chunk', async () => {
+    const zip = new JSZip();
+    zip.file('S2/Chemistry/Notes/atoms.pdf', await makePdf([...LONG, 'Atoms']));
+    const buf = Buffer.from(await zip.generateAsync({ type: 'nodebuffer' }));
+    const start = await t.app.request(
+      '/api/admin/resources/zip-uploads',
+      t.admin({
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ fileName: 'chunked.zip', size: buf.length }),
+      }),
+    );
+    expect(start.status).toBe(201);
+    const { upload } = (await start.json()) as { upload: { id: string; totalChunks: number } };
+    expect(upload.totalChunks).toBe(1);
+    const put = (body: Uint8Array) =>
+      t.app.request(
+        `/api/admin/resources/zip-uploads/${upload.id}/chunks/0`,
+        t.admin({
+          method: 'PUT',
+          headers: { 'content-type': 'application/octet-stream' },
+          body,
+        }),
+      );
+    // A truncated chunk (dropped connection) is rejected; the retry replaces it.
+    expect((await put(new Uint8Array(buf.subarray(0, 100)))).status).toBe(400);
+    const early = await t.app.request(
+      `/api/admin/resources/zip-uploads/${upload.id}/complete`,
+      t.admin({ method: 'POST' }),
+    );
+    expect(early.status).toBe(409);
+    expect((await put(new Uint8Array(buf))).status).toBe(200);
+    expect((await put(new Uint8Array(buf))).status).toBe(200);
+    const done = await t.app.request(
+      `/api/admin/resources/zip-uploads/${upload.id}/complete`,
+      t.admin({ method: 'POST' }),
+    );
+    expect(done.status).toBe(202);
+    const job = t.queued.findLast((j) => j.name === 'import-zip')!.data as { tempKey: string };
+    const stored = await t.services.ctx.storage.read(job.tempKey);
+    expect(Buffer.compare(stored, buf)).toBe(0);
   });
 });

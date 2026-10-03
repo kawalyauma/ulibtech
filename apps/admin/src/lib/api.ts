@@ -106,6 +106,33 @@ export const api = {
     }),
 };
 
+/**
+ * PUT one raw chunk (used by resumable zip uploads), with per-chunk upload progress.
+ * Network failures reject with status 0 so callers can retry.
+ */
+export function uploadChunk(path: string, blob: Blob, onProgress?: (bytes: number) => void) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', `/api/admin${path}`);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('content-type', 'application/octet-stream');
+    if (csrfToken) xhr.setRequestHeader('x-csrf-token', csrfToken);
+    xhr.upload.onprogress = (e) => onProgress?.(e.loaded);
+    xhr.onerror = () => reject(new ApiRequestError(0, 'NETWORK', 'Network error'));
+    xhr.ontimeout = () => reject(new ApiRequestError(0, 'NETWORK', 'Network timeout'));
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      const res = new Response(xhr.responseText || '{}', {
+        status: xhr.status,
+        headers: { 'content-type': 'application/json' },
+      });
+      handle<unknown>(res).then(() => resolve(), reject);
+    };
+    xhr.timeout = 10 * 60_000;
+    xhr.send(blob);
+  });
+}
+
 export function errorMessage(err: unknown): string {
   if (err instanceof ApiRequestError) return err.message;
   if (err instanceof Error) return err.message;

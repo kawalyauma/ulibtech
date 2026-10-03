@@ -59,6 +59,15 @@ const defaultJobOptions: JobsOptions = {
   removeOnFail: { age: 7 * 24 * 3600 },
 };
 
+/**
+ * Per-job overrides. AI enrichment calls an external provider that rate-limits bursts (a
+ * large zip import queues thousands), so it retries patiently instead of failing fast.
+ */
+const JOB_OPTIONS: Partial<Record<JobName, JobsOptions>> = {
+  'ai-enrich': { attempts: 10, backoff: { type: 'exponential', delay: 60_000 } },
+  'import-zip': { attempts: 3, backoff: { type: 'fixed', delay: 30_000 } },
+};
+
 let connection: Redis | undefined;
 const queues = new Map<QueueName, Queue>();
 
@@ -86,7 +95,7 @@ export async function enqueue<N extends JobName>(
   opts: JobsOptions = {},
 ): Promise<boolean> {
   try {
-    await getQueue(JOB_QUEUE[name]).add(name, data, opts);
+    await getQueue(JOB_QUEUE[name]).add(name, data, { ...JOB_OPTIONS[name], ...opts });
     return true;
   } catch (err) {
     console.error(`[jobs] failed to enqueue ${name}:`, (err as Error).message);

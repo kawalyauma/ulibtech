@@ -53,6 +53,9 @@ const workers = Object.values(QUEUES).map(
     new Worker(name, run, {
       connection: createRedis(env.REDIS_URL, { forQueue: true }),
       concurrency: concurrency[name] ?? 1,
+      // Zip imports and AI calls run for minutes; a short lock lets BullMQ think the job
+      // stalled and start it again in parallel.
+      ...(name === QUEUES.imports || name === QUEUES.ai ? { lockDuration: 10 * 60_000 } : {}),
     }),
 );
 for (const w of workers) {

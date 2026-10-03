@@ -57,6 +57,10 @@ export function autopilotReasons(input: {
       reasons.push(`May break ad content policies${q.notes ? `: ${q.notes}` : '.'}`);
     if (q.containsPersonalData)
       reasons.push('Contains personal data (names with phones, marks or IDs).');
+    if (q.commercialPublication)
+      reasons.push(
+        'Looks like a commercially published book; confirm you have the rights before publishing (ads review rejects copyrighted copies).',
+      );
   }
   if (wordCount(input.description) < MIN_DESCRIPTION_WORDS)
     reasons.push(`Description is shorter than ${MIN_DESCRIPTION_WORDS} words.`);

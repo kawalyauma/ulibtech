@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { FileArchive, Loader2, RefreshCw } from 'lucide-react';
 import { Badge, Button, Card, Label, Table, TBody, THead, Td, Th, Tr } from '@edushare/ui';
-import { api, errorMessage } from '@/lib/api';
+import { api, ApiRequestError, errorMessage, uploadChunk } from '@/lib/api';
 import { PageHeader } from '@/components/shell';
 import { StatusBadge } from '@/components/status-badge';
 
@@ -90,13 +90,56 @@ export default function ZipImportPage() {
   });
   const detail = detailQuery.data ?? null;
 
+  const [note, setNote] = useState<string | null>(null);
+
+  // Resumable chunked upload: each 16 MB chunk is retried on its own, so a dropped
+  // connection costs seconds instead of restarting a multi-GB upload.
   const upload = async () => {
     if (!file) return;
     setProgress(0);
+    setNote(null);
+    const leave = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', leave);
     try {
-      const fd = new FormData();
-      fd.set('zip', file, file.name);
-      const res = await api.upload<{ batch: Batch }>('/resources/zip-import', fd, setProgress);
+      const { upload: u } = await api.post<{
+        upload: { id: string; chunkSize: number; totalChunks: number };
+      }>('/resources/zip-uploads', { fileName: file.name, size: file.size });
+      const inFlight = new Map<number, number>();
+      let doneBytes = 0;
+      const report = () =>
+        setProgress((doneBytes + [...inFlight.values()].reduce((a, b) => a + b, 0)) / file.size);
+      const queue = Array.from({ length: u.totalChunks }, (_, i) => i);
+      const sendChunk = async (i: number) => {
+        const blob = file.slice(i * u.chunkSize, Math.min(file.size, (i + 1) * u.chunkSize));
+        for (let attempt = 1; ; attempt++) {
+          try {
+            await uploadChunk(`/resources/zip-uploads/${u.id}/chunks/${i}`, blob, (b) => {
+              inFlight.set(i, b);
+              report();
+            });
+            inFlight.delete(i);
+            doneBytes += blob.size;
+            report();
+            return;
+          } catch (err) {
+            inFlight.delete(i);
+            const status = err instanceof ApiRequestError ? err.status : 0;
+            const retryable = status === 0 || status === 408 || status === 429 || status >= 500;
+            if (!retryable || attempt >= 8) throw err;
+            const wait = Math.min(60, 2 ** attempt);
+            setNote(`Connection hiccup on part ${i + 1}; retrying in ${wait}s…`);
+            await new Promise((r) => setTimeout(r, wait * 1000));
+            setNote(null);
+          }
+        }
+      };
+      await Promise.all(
+        [0, 1, 2].map(async () => {
+          for (let i = queue.shift(); i !== undefined; i = queue.shift()) await sendChunk(i);
+        }),
+      );
+      setNote('Joining the parts on the server…');
+      const res = await api.post<{ batch: Batch }>(`/resources/zip-uploads/${u.id}/complete`);
       toast.success('Zip uploaded. It will be unpacked and processed in the background.');
       setFile(null);
       setChosen(res.batch.id);
@@ -104,7 +147,9 @@ export default function ZipImportPage() {
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
+      window.removeEventListener('beforeunload', leave);
       setProgress(null);
+      setNote(null);
     }
   };
 
@@ -203,8 +248,8 @@ export default function ZipImportPage() {
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
             <p className="text-muted-foreground text-xs">
-              PDF, Word, PowerPoint, Excel, ODT, text and images. Duplicates of files already on the
-              site are skipped.
+              PDF, Word, PowerPoint, Excel, ODT, text and images, in any folders (up to 4 GB).
+              Folder names help classification. Duplicates of files already on the site are skipped.
             </p>
             <Button onClick={upload} disabled={!file || progress !== null}>
               {progress !== null ? (
@@ -216,6 +261,11 @@ export default function ZipImportPage() {
                 'Upload and process'
               )}
             </Button>
+            {note ? (
+              <p className="text-muted-foreground text-xs" aria-live="polite">
+                {note}
+              </p>
+            ) : null}
           </Card>
           {batches.length ? (
             <Card className="flex flex-col gap-1 p-3">

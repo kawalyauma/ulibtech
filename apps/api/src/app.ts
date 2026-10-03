@@ -42,6 +42,12 @@ export function createApp(services: Services) {
   app.use('/api/*', async (c, next) => {
     const type = c.req.header('content-type') ?? '';
     if (type.startsWith('multipart/form-data')) return next();
+    // Raw zip chunks are size-checked by the chunk route itself.
+    if (
+      type.startsWith('application/octet-stream') &&
+      /^\/api\/admin\/resources\/zip-uploads\/[^/]+\/chunks\/\d+$/.test(c.req.path)
+    )
+      return next();
     return bodyLimit({
       maxSize: 256 * 1024,
       onError: () => {
