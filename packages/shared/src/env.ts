@@ -21,6 +21,8 @@ const serverEnvSchema = z.object({
   SESSION_ABSOLUTE_HOURS: z.coerce.number().int().min(1).default(12),
   ANALYTICS_SALT: z.string().min(8).default('dev-analytics-salt'),
   REVALIDATE_SECRET: z.string().min(8).default('dev-revalidate-secret'),
+  /** Comma-separated keys for trusted server integrations (e.g. Ledgerly e-library). Unset disables /api/integrations. */
+  INTEGRATION_API_KEYS: z.string().default(''),
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_ROOT: z.string().default('./storage'),
   STORAGE_ACCEL_REDIRECT: bool,

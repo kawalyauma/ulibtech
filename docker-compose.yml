@@ -38,6 +38,7 @@ x-app-env: &app-env
   # AI through a self-hosted Ledgerly server (API key with the ai:write scope).
   LEDGERLY_AI_URL: ${LEDGERLY_AI_URL:-}
   LEDGERLY_AI_API_KEY: ${LEDGERLY_AI_API_KEY:-}
+  INTEGRATION_API_KEYS: ${INTEGRATION_API_KEYS:-}
   # Apply AI results to zip imports and publish those that pass the quality checks.
   AI_AUTOPILOT: ${AI_AUTOPILOT:-false}
   ZIP_MAX_MB: ${ZIP_MAX_MB:-2048}

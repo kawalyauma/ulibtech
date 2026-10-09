@@ -8,6 +8,7 @@ import { accessLog, securityHeaders } from './middleware/security';
 import { csrfProtection, requireAdmin } from './middleware/auth';
 import { limiter } from './middleware/rate-limit';
 import { publicRoutes } from './modules/public';
+import { integrationRoutes } from './modules/integrations';
 import { fileRoutes } from './modules/files';
 import { authRoutes } from './modules/admin/auth';
 import { adminResourceRoutes } from './modules/admin/resources';
@@ -81,6 +82,7 @@ export function createApp(services: Services) {
   admin.route('/', adminMiscRoutes(services));
   app.route('/api/admin', admin);
 
+  app.route('/api/integrations', integrationRoutes(services));
   app.route('/api', publicRoutes(services));
 
   app.notFound((c) => c.json({ error: { code: 'NOT_FOUND', message: 'Not found' } }, 404));
