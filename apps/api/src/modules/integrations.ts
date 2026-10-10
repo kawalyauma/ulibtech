@@ -5,13 +5,14 @@ import { sql } from '@edushare/database';
 import { createResourceFromUpload, replaceResourceFile, type Actor } from '@edushare/resources';
 import { AppError, resourceMetadataSchema } from '@edushare/shared';
 import { fieldsToObject, parseMultipart } from '../lib/upload';
-import { parse, type AppEnv } from '../lib/http';
+import { jsonBody, parse, type AppEnv } from '../lib/http';
 import { limiter } from '../middleware/rate-limit';
 import type { Services } from '../services';
 
 const DEFAULT_TEXT_CHARS = 200_000;
 const MAX_TEXT_CHARS = 1_000_000;
 const PUBLISHER_EMAIL = 'ledgerly-ai@integrations.notesug.com';
+const TELEGRAM_EMAIL = 'telegram-import@integrations.notesug.com';
 const digest = (value: string) => createHash('sha256').update(value).digest();
 
 /**
@@ -116,16 +117,18 @@ export function integrationRoutes(services: Services) {
   // Publishing from Ledgerly AI (schemes of work, lesson notes, lesson plans). Resources are filed under a
   // dedicated service account that cannot sign in, go through the normal processing and security scan,
   // and are published automatically once processing completes.
-  let publisher: Actor | null = null;
-  const publisherActor = async (): Promise<Actor> => {
-    if (publisher) return publisher;
+  const publishers = new Map<string, Actor>();
+  const publisherActor = async (email = PUBLISHER_EMAIL, name = 'Ledgerly AI'): Promise<Actor> => {
+    const cached = publishers.get(email);
+    if (cached) return cached;
     const [row] = await services.ctx.db.execute<{ id: string }>(sql`
       INSERT INTO admins (email, name, password_hash, is_active)
-      VALUES (${PUBLISHER_EMAIL}, 'Ledgerly AI', ${'!disabled:' + randomBytes(16).toString('hex')}, false)
+      VALUES (${email}, ${name}, ${'!disabled:' + randomBytes(16).toString('hex')}, false)
       ON CONFLICT (email) DO UPDATE SET name = admins.name
       RETURNING id`);
-    publisher = { id: row!.id, name: 'Ledgerly AI', permissions: ['resources.create', 'resources.publish'] };
-    return publisher;
+    const actor = { id: row!.id, name, permissions: ['resources.create', 'resources.publish'] };
+    publishers.set(email, actor);
+    return actor;
   };
   const lookup = async (table: 'classes' | 'subjects' | 'resource_types' | 'terms', slug?: string) => {
     if (!slug) return undefined;
@@ -171,6 +174,46 @@ export function integrationRoutes(services: Services) {
       await services.ctx.storage.delete(file.tempKey).catch(() => undefined);
       throw err;
     }
+  });
+
+  // A Telegram downloader running inside NexDrive registers the already-stored file here.
+  // The resource deliberately remains a draft; AI may suggest metadata but cannot publish it.
+  const telegramFields = z.object({
+    nodeId: z.string().uuid(),
+    messageId: z.number().int().positive(),
+    group: z.string().trim().min(1).max(300),
+    fileName: z.string().trim().min(1).max(255),
+    sizeBytes: z.number().int().positive(),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    title: z.string().trim().min(3).max(200),
+    description: z.string().trim().max(10_000).optional(),
+  });
+  app.post('/telegram/resources', async (c) => {
+    const input = parse(telegramFields, await jsonBody(c));
+    const [duplicate] = await services.ctx.db.execute<{ id: string; slug: string; title: string }>(sql`
+      SELECT r.id, r.slug, r.title FROM resource_files f
+      JOIN resources r ON r.id = f.resource_id
+      WHERE f.sha256 = ${input.sha256} LIMIT 1`);
+    if (duplicate) return c.json({ duplicate: true, resource: duplicate });
+
+    const storageKey = `nexdrive/${input.nodeId}`;
+    const metadata = await services.ctx.storage.getMetadata(storageKey);
+    if (!metadata || metadata.size !== input.sizeBytes)
+      throw AppError.badRequest('The NexDrive file is missing or its size changed.');
+    const actor = await publisherActor(TELEGRAM_EMAIL, 'Telegram Import');
+    const result = await createResourceFromUpload(
+      services.ctx,
+      actor,
+      { tempKey: storageKey, originalName: input.fileName, sizeBytes: input.sizeBytes, sha256: input.sha256 },
+      parse(resourceMetadataSchema, {
+        title: input.title,
+        description: input.description,
+        author: 'P.7 Teachers in Uganda',
+        status: 'draft',
+      }),
+      { stored: true, suggestions: { telegram: { group: input.group, messageId: input.messageId, nodeId: input.nodeId } } },
+    );
+    return c.json({ ...result, duplicate: false }, 201);
   });
 
   // New version of a document this integration published (same page and link; older versions are kept).

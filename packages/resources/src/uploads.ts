@@ -51,6 +51,32 @@ export async function ingestUpload(ctx: ServiceContext, actor: Actor, upload: Te
   return file;
 }
 
+/** Registers a file that already exists in a routed storage backend such as NexDrive. */
+export async function ingestStoredUpload(ctx: ServiceContext, actor: Actor, upload: TemporaryUpload) {
+  if (upload.sizeBytes <= 0 || !(await ctx.storage.exists(upload.tempKey)))
+    throw new AppError('BAD_REQUEST', 'The external file is missing or empty.');
+  let detected;
+  try {
+    detected = await detectFileType(await readObjectHead(ctx.storage, upload.tempKey), upload.originalName);
+  } catch (err) {
+    if (err instanceof UnsupportedFileError)
+      throw new AppError('UNSUPPORTED_MEDIA_TYPE', err.message);
+    throw err;
+  }
+  const [file] = await ctx.db.insert(resourceFiles).values({
+    storageKey: upload.tempKey,
+    originalName: upload.originalName.slice(0, 255),
+    kind: detected.kind,
+    mimeType: detected.mime,
+    extension: detected.extension,
+    sizeBytes: upload.sizeBytes,
+    sha256: upload.sha256,
+    uploadedById: actor.id,
+  }).returning();
+  if (!file) throw new Error('Failed to store external file record');
+  return file;
+}
+
 export async function attachFileToResource(
   ctx: ServiceContext,
   fileId: string,

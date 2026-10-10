@@ -1,11 +1,13 @@
 import { LocalFilesystemStorageProvider } from './local';
 import { S3StorageProvider } from './s3';
+import { NexDriveStorageProvider, RoutedStorageProvider } from './nexdrive';
 import type { StorageProvider } from './types';
 
 export * from './types';
 export * from './keys';
 export { LocalFilesystemStorageProvider } from './local';
 export { S3StorageProvider } from './s3';
+export { NexDriveStorageProvider, RoutedStorageProvider } from './nexdrive';
 
 let instance: StorageProvider | undefined;
 
@@ -16,7 +18,7 @@ export function getStorage(): StorageProvider {
     if (driver === 's3') {
       const bucket = process.env.S3_BUCKET;
       if (!bucket) throw new Error('STORAGE_DRIVER=s3 requires S3_BUCKET');
-      instance = new S3StorageProvider({
+      const primary = new S3StorageProvider({
         bucket,
         region: process.env.S3_REGION,
         endpoint: process.env.S3_ENDPOINT || undefined,
@@ -25,16 +27,27 @@ export function getStorage(): StorageProvider {
         forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
         prefix: process.env.S3_PREFIX,
       });
+      instance = withNexDrive(primary);
       return instance;
     }
     if (driver !== 'local') throw new Error(`Unsupported STORAGE_DRIVER: ${driver}`);
     const accel = process.env.STORAGE_ACCEL_REDIRECT === 'true' ? '/_protected' : null;
-    instance = new LocalFilesystemStorageProvider({
+    instance = withNexDrive(new LocalFilesystemStorageProvider({
       root: process.env.STORAGE_ROOT ?? './storage',
       accelPrefix: accel,
-    });
+    }));
   }
   return instance;
+}
+
+function withNexDrive(primary: StorageProvider): StorageProvider {
+  const url = process.env.NEXDRIVE_URL;
+  const workspace = process.env.NEXDRIVE_WORKSPACE_ID;
+  const key = process.env.NEXDRIVE_API_KEY;
+  if (!url && !workspace && !key) return primary;
+  if (!url || !workspace || !key)
+    throw new Error('NEXDRIVE_URL, NEXDRIVE_WORKSPACE_ID and NEXDRIVE_API_KEY must be set together');
+  return new RoutedStorageProvider(primary, new NexDriveStorageProvider(url, workspace, key));
 }
 
 export function setStorage(provider: StorageProvider): void {
@@ -46,7 +59,8 @@ export function setStorage(provider: StorageProvider): void {
  * path; remote providers (S3/MinIO) download to a temporary file that is removed afterwards.
  */
 export async function withLocalCopy<T>(storage: StorageProvider, key: string, fn: (path: string) => Promise<T>): Promise<T> {
-  if (storage.localPath) return fn(storage.localPath(key));
+  const local = storage.localPath?.(key);
+  if (local) return fn(local);
   const { createWriteStream } = await import('node:fs');
   const { rm } = await import('node:fs/promises');
   const { pipeline } = await import('node:stream/promises');

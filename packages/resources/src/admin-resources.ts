@@ -42,7 +42,7 @@ import { findDuplicates } from './duplicates';
 import { loadDetail } from './queries';
 import { mapDetail } from './mappers';
 import { uniqueResourceSlug } from './slugs';
-import { attachFileToResource, ingestUpload, type TemporaryUpload } from './uploads';
+import { attachFileToResource, ingestStoredUpload, ingestUpload, type TemporaryUpload } from './uploads';
 import { getResourceStats } from '@edushare/analytics';
 
 type AdminListQuery = z.infer<typeof adminResourceListSchema>;
@@ -128,9 +128,11 @@ export async function createResourceFromUpload(
   actor: Actor,
   upload: TemporaryUpload,
   input: ResourceMetadataInput,
-  extra: { suggestions?: Record<string, unknown> } = {},
+  extra: { suggestions?: Record<string, unknown>; stored?: boolean } = {},
 ) {
-  const file = await ingestUpload(ctx, actor, upload);
+  const file = extra.stored
+    ? await ingestStoredUpload(ctx, actor, upload)
+    : await ingestUpload(ctx, actor, upload);
   const slug = await uniqueResourceSlug(ctx.db, input.slug ?? input.title);
   const duplicates = await findDuplicates(ctx.db, {
     sha256: file.sha256,
