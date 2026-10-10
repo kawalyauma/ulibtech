@@ -44,24 +44,33 @@ export function integrationRoutes(services: Services) {
   app.get('/resources', async (c) => {
     const q = c.req.query();
     const drafts = q.includeDrafts === '1';
-    const like = q.q ? `%${q.q.replace(/[%_]/g, '')}%` : null;
+    const query = q.q?.trim().slice(0, 200) || null;
+    const like = query ? `%${query.replace(/[%_]/g, '')}%` : null;
     const rows = await services.ctx.db.execute<Record<string, unknown>>(sql`
-      SELECT r.slug, r.title, r.status, rt.slug AS type, cl.slug AS class, su.slug AS subject, te.slug AS term,
-             f.page_count AS "pageCount", length(f.extracted_text) AS chars, f.sha256
+      SELECT r.slug, r.title, r.status, r.short_description AS description, r.topic_text AS topic,
+             r.subtopic_text AS subtopic, r.keywords, rt.slug AS type, cl.slug AS class,
+             su.slug AS subject, te.slug AS term, f.page_count AS "pageCount", f.size_bytes AS "sizeBytes",
+             COALESCE(length(f.extracted_text),0) AS chars, f.sha256
         FROM resources r
         JOIN resource_files f ON f.id = r.file_id
         LEFT JOIN resource_types rt ON rt.id = r.resource_type_id
         LEFT JOIN classes cl ON cl.id = r.class_id
         LEFT JOIN subjects su ON su.id = r.subject_id
         LEFT JOIN terms te ON te.id = r.term_id
-       WHERE f.is_missing = false AND length(f.extracted_text) > 500
+       WHERE f.is_missing = false
          AND (r.status = 'published' OR (${drafts} AND r.status IN ('draft', 'review')))
          AND (${q.class ?? null}::text IS NULL OR cl.slug = ${q.class ?? null})
          AND (${q.subject ?? null}::text IS NULL OR su.slug = ${q.subject ?? null})
          AND (${q.type ?? null}::text IS NULL OR rt.slug = ${q.type ?? null})
          AND (${q.term ?? null}::text IS NULL OR te.slug = ${q.term ?? null} OR te.slug IS NULL)
-         AND (${like}::text IS NULL OR r.title ILIKE ${like})
-       ORDER BY (r.status = 'published') DESC, length(f.extracted_text) DESC
+         AND (${like}::text IS NULL OR r.title ILIKE ${like} OR r.short_description ILIKE ${like}
+              OR r.description ILIKE ${like} OR r.topic_text ILIKE ${like} OR r.subtopic_text ILIKE ${like}
+              OR array_to_string(r.keywords,' ') ILIKE ${like} OR r.search_text ILIKE ${like}
+              OR (${query}::text IS NOT NULL AND r.search_vector @@ websearch_to_tsquery('english', ${query})))
+       ORDER BY CASE WHEN ${like}::text IS NOT NULL AND r.title ILIKE ${like} THEN 0
+                     WHEN ${like}::text IS NOT NULL AND (r.topic_text ILIKE ${like} OR r.subtopic_text ILIKE ${like}) THEN 1
+                     ELSE 2 END,
+                (r.status = 'published') DESC, COALESCE(length(f.extracted_text),0) DESC
        LIMIT ${Math.min(100, Math.max(1, Number(q.limit ?? 30) || 30))}`);
     return c.json({ items: rows });
   });
@@ -75,6 +84,7 @@ export function integrationRoutes(services: Services) {
     const [row] = await services.ctx.db.execute<{
       slug: string;
       title: string;
+      status: string;
       type: string | null;
       class_name: string | null;
       subject: string | null;
@@ -83,7 +93,7 @@ export function integrationRoutes(services: Services) {
       ocr_applied: boolean;
       text: string | null;
     }>(sql`
-      SELECT r.slug, r.title, rt.name AS type, cl.name AS class_name, su.name AS subject, te.name AS term,
+      SELECT r.slug, r.title, r.status, rt.name AS type, cl.name AS class_name, su.name AS subject, te.name AS term,
              f.page_count, f.ocr_applied, f.extracted_text AS text
         FROM resources r
         JOIN resource_files f ON f.id = r.file_id
@@ -99,6 +109,7 @@ export function integrationRoutes(services: Services) {
       resource: {
         slug: row.slug,
         title: row.title,
+        status: row.status,
         type: row.type,
         className: row.class_name,
         subject: row.subject,
