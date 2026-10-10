@@ -39,6 +39,9 @@ x-app-env: &app-env
   LEDGERLY_AI_URL: ${LEDGERLY_AI_URL:-}
   LEDGERLY_AI_API_KEY: ${LEDGERLY_AI_API_KEY:-}
   INTEGRATION_API_KEYS: ${INTEGRATION_API_KEYS:-}
+  NEXDRIVE_URL: ${NEXDRIVE_URL:-}
+  NEXDRIVE_WORKSPACE_ID: ${NEXDRIVE_WORKSPACE_ID:-}
+  NEXDRIVE_API_KEY: ${NEXDRIVE_API_KEY:-}
   # Apply AI results to zip imports and publish those that pass the quality checks.
   AI_AUTOPILOT: ${AI_AUTOPILOT:-false}
   ZIP_MAX_MB: ${ZIP_MAX_MB:-2048}
