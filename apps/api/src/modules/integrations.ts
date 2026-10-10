@@ -182,6 +182,8 @@ export function integrationRoutes(services: Services) {
     nodeId: z.string().uuid(),
     messageId: z.number().int().positive(),
     group: z.string().trim().min(1).max(300),
+    /** The Telegram group's name, credited as the author. */
+    source: z.string().trim().min(1).max(200).optional(),
     fileName: z.string().trim().min(1).max(255),
     sizeBytes: z.number().int().positive(),
     sha256: z.string().regex(/^[0-9a-f]{64}$/),
@@ -208,7 +210,7 @@ export function integrationRoutes(services: Services) {
       parse(resourceMetadataSchema, {
         title: input.title,
         description: input.description,
-        author: 'P.7 Teachers in Uganda',
+        author: input.source ?? 'P.7 Teachers in Uganda',
         status: 'draft',
       }),
       { stored: true, suggestions: { telegram: { group: input.group, messageId: input.messageId, nodeId: input.nodeId } } },
