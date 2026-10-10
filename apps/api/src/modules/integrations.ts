@@ -2,7 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { sql } from '@edushare/database';
-import { createResourceFromUpload, type Actor } from '@edushare/resources';
+import { createResourceFromUpload, replaceResourceFile, type Actor } from '@edushare/resources';
 import { AppError, resourceMetadataSchema } from '@edushare/shared';
 import { fieldsToObject, parseMultipart } from '../lib/upload';
 import { parse, type AppEnv } from '../lib/http';
@@ -167,6 +167,25 @@ export function integrationRoutes(services: Services) {
       });
       const result = await createResourceFromUpload(services.ctx, await publisherActor(), file, input);
       return c.json(result, 201);
+    } catch (err) {
+      await services.ctx.storage.delete(file.tempKey).catch(() => undefined);
+      throw err;
+    }
+  });
+
+  // New version of a document this integration published (same page and link; older versions are kept).
+  app.post('/resources/:slug/file', async (c) => {
+    const actor = await publisherActor();
+    const [row] = await services.ctx.db.execute<{ id: string }>(sql`
+      SELECT r.id FROM resources r WHERE r.slug = ${c.req.param('slug')} AND r.created_by_id = ${actor.id} LIMIT 1`);
+    if (!row) throw AppError.notFound('Resource');
+    const maxBytes = services.env.MAX_UPLOAD_MB * 1024 * 1024;
+    const { fields, files } = await parseMultipart(c, services.ctx.storage, { maxFileBytes: maxBytes, maxFiles: 1 });
+    const file = files[0];
+    if (!file) throw AppError.badRequest('Attach the document as "file".');
+    try {
+      const notes = fieldsToObject(fields).notes;
+      return c.json(await replaceResourceFile(services.ctx, actor, row.id, file, typeof notes === 'string' ? notes.slice(0, 500) : 'Updated by Ledgerly AI'));
     } catch (err) {
       await services.ctx.storage.delete(file.tempKey).catch(() => undefined);
       throw err;
