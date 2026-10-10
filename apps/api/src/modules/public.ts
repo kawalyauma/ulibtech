@@ -160,13 +160,9 @@ export function publicRoutes(services: Services) {
       where: eq(resources.slug, c.req.param('slug')),
       columns: { status: true },
     });
-    const status = !row
-      ? 'missing'
-      : row.status === 'published'
-        ? 'published'
-        : row.status === 'unpublished' || row.status === 'archived'
-          ? 'gone'
-          : 'missing';
+    // Every known non-public resource is intentionally gone from the public web.
+    // Returning 410 prevents legacy/draft URLs from lingering as crawlable 404s.
+    const status = !row ? 'missing' : row.status === 'published' ? 'published' : 'gone';
     c.header('Cache-Control', 'public, max-age=30');
     return c.json({ status });
   });

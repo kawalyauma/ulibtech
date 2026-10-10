@@ -75,10 +75,10 @@ const config: NextConfig = {
   },
   async redirects() {
     return [
-      { source: '/resource/:slug', destination: '/resources/:slug', permanent: true },
       { source: '/class/:slug', destination: '/classes/:slug', permanent: true },
       { source: '/subject/:slug', destination: '/subjects/:slug', permanent: true },
       { source: '/collection/:slug', destination: '/collections/:slug', permanent: true },
+      { source: '/categories/:slug', destination: '/:slug', permanent: true },
     ];
   },
   async rewrites() {

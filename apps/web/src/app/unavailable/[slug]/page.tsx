@@ -8,11 +8,18 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
+function titleFromSlug(slug: string) {
+  return slug
+    .replace(/-[0-9a-f]{8}$/i, '')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 /** Rendered (with HTTP 410) by the proxy when a resource was unpublished or archived. */
 export default async function UnavailablePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const lookup = await getResource(slug).catch(() => null);
-  const title = lookup && 'unavailable' in lookup ? lookup.unavailable : 'This resource';
+  const title = lookup && 'unavailable' in lookup ? lookup.unavailable : titleFromSlug(slug);
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-4 px-4 py-20 text-center">
       <AlertTriangle className="text-warning size-10" aria-hidden="true" />
