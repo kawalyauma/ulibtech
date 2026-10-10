@@ -9,6 +9,9 @@ export interface SitemapUrl {
 /** Max URLs per sitemap file (protocol limit is 50,000). */
 export const SITEMAP_PAGE_SIZE = 5000;
 
+const XML_HEADER =
+  '<?xml version="1.0" encoding="UTF-8"?>\n<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>';
+
 function xmlEscape(s: string): string {
   return s.replace(
     /[<>&'"]/g,
@@ -32,7 +35,7 @@ export function buildUrlset(urls: SitemapUrl[]): string {
       return `<url>${parts.join('')}</url>`;
     })
     .join('\n');
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${body}\n</urlset>\n`;
+  return `${XML_HEADER}\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n${body}\n</urlset>\n`;
 }
 
 export function buildSitemapIndex(
@@ -44,5 +47,5 @@ export function buildSitemapIndex(
         `<sitemap><loc>${xmlEscape(e.loc)}</loc>${e.lastmod ? `<lastmod>${iso(e.lastmod)}</lastmod>` : ''}</sitemap>`,
     )
     .join('\n');
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</sitemapindex>\n`;
+  return `${XML_HEADER}\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</sitemapindex>\n`;
 }

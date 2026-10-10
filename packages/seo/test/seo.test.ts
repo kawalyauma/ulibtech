@@ -61,6 +61,7 @@ describe('sitemaps', () => {
       { loc: 'https://e.com/search?q=a&b', lastmod: '2026-01-01T00:00:00Z', priority: 0.8 },
     ]);
     expect(xml).toContain('<loc>https://e.com/search?q=a&amp;b</loc>');
+    expect(xml).toContain('<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>');
     expect(buildSitemapIndex([{ loc: 'https://e.com/sitemaps/resources-1.xml' }])).toContain(
       '<sitemapindex',
     );
