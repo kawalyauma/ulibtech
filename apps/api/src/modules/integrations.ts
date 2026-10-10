@@ -216,6 +216,47 @@ export function integrationRoutes(services: Services) {
     return c.json({ ...result, duplicate: false }, 201);
   });
 
+  // Licensed educational documents mirrored from Fresh Teacher's public GitHub repositories.
+  const freshTeacherFields = z.object({
+    nodeId: z.string().uuid(),
+    repo: z.string().trim().min(1).max(120),
+    path: z.string().trim().min(1).max(1000),
+    commit: z.string().regex(/^[0-9a-f]{40}$/),
+    license: z.string().trim().min(1).max(80),
+    fileName: z.string().trim().min(1).max(255),
+    sizeBytes: z.number().int().positive(),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    title: z.string().trim().min(3).max(200),
+  });
+  app.post('/fresh-teacher/resources', async (c) => {
+    const input = parse(freshTeacherFields, await jsonBody(c));
+    const [duplicate] = await services.ctx.db.execute<{ id: string; slug: string; title: string }>(sql`
+      SELECT r.id, r.slug, r.title FROM resource_files f
+      JOIN resources r ON r.id = f.resource_id
+      WHERE f.sha256 = ${input.sha256} LIMIT 1`);
+    if (duplicate) return c.json({ duplicate: true, resource: duplicate });
+
+    const storageKey = `nexdrive/${input.nodeId}`;
+    const metadata = await services.ctx.storage.getMetadata(storageKey);
+    if (!metadata || metadata.size !== input.sizeBytes)
+      throw AppError.badRequest('The NexDrive file is missing or its size changed.');
+    const actor = await publisherActor('fresh-teacher@integrations.notesug.com', 'Fresh Teacher Import');
+    const sourceUrl = `https://github.com/Fresh-Teacher/${encodeURIComponent(input.repo)}/blob/${input.commit}/${input.path.split('/').map(encodeURIComponent).join('/')}`;
+    const result = await createResourceFromUpload(
+      services.ctx,
+      actor,
+      { tempKey: storageKey, originalName: input.fileName, sizeBytes: input.sizeBytes, sha256: input.sha256 },
+      parse(resourceMetadataSchema, {
+        title: input.title,
+        description: `Source: ${sourceUrl}\nLicense: ${input.license}`,
+        author: 'Fresh Teacher',
+        status: 'draft',
+      }),
+      { stored: true, suggestions: { freshTeacher: { repo: input.repo, path: input.path, commit: input.commit, license: input.license } } },
+    );
+    return c.json({ ...result, duplicate: false }, 201);
+  });
+
   // New version of a document this integration published (same page and link; older versions are kept).
   app.post('/resources/:slug/file', async (c) => {
     const actor = await publisherActor();
