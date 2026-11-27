@@ -10,7 +10,13 @@ export const dynamic = 'force-dynamic';
 /** Sitemap index pointing at per-type sitemaps (resources are paginated). */
 export async function GET() {
   const data = await getSitemapIndex().catch(() => null);
-  const items = data?.items ?? [{ name: 'static', lastmod: null }];
+  if (!data) {
+    return new Response('Sitemap temporarily unavailable', {
+      status: 503,
+      headers: { 'cache-control': 'no-store', 'retry-after': '60' },
+    });
+  }
+  const items = data.items;
   const xml = buildSitemapIndex(
     items.map((i) => ({ loc: `${SITE_URL}/sitemaps/${i.name}.xml`, lastmod: i.lastmod })),
   );

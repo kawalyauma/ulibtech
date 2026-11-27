@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { recordEvent, recordSearch, recordShare, recordView } from '@edushare/analytics';
 import { eq } from '@edushare/database';
-import { resources } from '@edushare/database/schema';
+import { resourceRedirects, resources } from '@edushare/database/schema';
 import {
   getCardsByIds,
   getHome,
@@ -160,8 +160,18 @@ export function publicRoutes(services: Services) {
       where: eq(resources.slug, c.req.param('slug')),
       columns: { status: true },
     });
-    // Every known non-public resource is intentionally gone from the public web.
-    // Returning 410 prevents legacy/draft URLs from lingering as crawlable 404s.
+    if (!row) {
+      const [target] = await ctx.db
+        .select({ slug: resources.slug, status: resources.status })
+        .from(resourceRedirects)
+        .innerJoin(resources, eq(resources.id, resourceRedirects.resourceId))
+        .where(eq(resourceRedirects.oldSlug, c.req.param('slug')))
+        .limit(1);
+      if (target?.status === 'published') {
+        c.header('Cache-Control', 'public, max-age=30');
+        return c.json({ status: 'redirect', slug: target.slug });
+      }
+    }
     const status = !row ? 'missing' : row.status === 'published' ? 'published' : 'gone';
     c.header('Cache-Control', 'public, max-age=30');
     return c.json({ status });
