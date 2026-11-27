@@ -4,6 +4,9 @@ import { getTaxonomy } from '@/lib/api';
 import { loadLanding } from '@/lib/landing';
 import type { RawSearchParams } from '@/lib/search-params';
 import { LandingView, landingMetadata } from '@/components/landing-view';
+import { PleMathematicsPractice } from '@/components/ple-mathematics-practice';
+
+const PLE_MATHS_PATH = '/p7/mathematics/past-papers';
 
 /**
  * Classification landing pages generated from taxonomy, e.g.
@@ -24,7 +27,16 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     page: 1,
   }));
   if (!data) return { title: 'Page not found', robots: { index: false } };
-  return landingMetadata(data, page);
+  const metadata = landingMetadata(data, page);
+  if (data.landing.path === PLE_MATHS_PATH && page === 1 && !data.landing.noindex) {
+    return {
+      ...metadata,
+      title: 'P7 Mathematics Past Papers and PLE Practice',
+      description:
+        'Browse free P7 Mathematics past papers and practise fractions, decimals, proportion and percentages with five worked answers.',
+    };
+  }
+  return metadata;
 }
 
 export default async function LandingPage({ params, searchParams }: Props) {
@@ -35,5 +47,19 @@ export default async function LandingPage({ params, searchParams }: Props) {
     getTaxonomy().catch(() => null),
   ]);
   if (!data) notFound();
-  return <LandingView data={data} taxonomy={taxonomy} page={page} values={values} />;
+  return (
+    <LandingView
+      data={data}
+      taxonomy={taxonomy}
+      page={page}
+      values={values}
+      extra={
+        data.landing.path === PLE_MATHS_PATH &&
+        page === 1 &&
+        !Object.values(values).some(Boolean) ? (
+          <PleMathematicsPractice />
+        ) : undefined
+      }
+    />
+  );
 }
