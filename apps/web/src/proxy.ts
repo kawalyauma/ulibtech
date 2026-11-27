@@ -4,8 +4,7 @@ const API = (process.env.API_INTERNAL_URL ?? 'http://localhost:4000').replace(/\
 const SECRET = process.env.REVALIDATE_SECRET ?? 'dev-revalidate-secret';
 const TTL_MS = 60_000;
 type ResourceStatus =
-  | { status: 'published' | 'gone' | 'missing' }
-  | { status: 'redirect'; slug: string };
+  { status: 'published' | 'gone' | 'missing' } | { status: 'redirect'; slug: string };
 const cache = new Map<string, { value: ResourceStatus; at: number }>();
 const LEGACY_GONE_PATHS = new Set([
   '/preferences',
@@ -74,10 +73,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/resource/:slug',
-    '/resources/:slug',
-    '/preferences',
-    '/__META_CANONICAL__',
-  ],
+  matcher: ['/resource/:slug', '/resources/:slug', '/preferences', '/__META_CANONICAL__'],
 };

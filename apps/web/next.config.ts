@@ -87,7 +87,8 @@ const config: NextConfig = {
       },
       {
         source: '/resource/lesson-notes-for-numbers-for-middle-class-term-iii-3',
-        destination: 'https://notes.notesug.com/resource/lesson-notes-for-numbers-for-middle-class-term-iii-3',
+        destination:
+          'https://notes.notesug.com/resource/lesson-notes-for-numbers-for-middle-class-term-iii-3',
         permanent: true,
       },
       { source: '/class/:slug', destination: '/classes/:slug', permanent: true },
