@@ -75,6 +75,21 @@ const config: NextConfig = {
   },
   async redirects() {
     return [
+      {
+        source: '/resource/p1-term-3-literacy-1-workbook',
+        destination: '/resources/p1-term-3-literacy-1-workbook',
+        permanent: true,
+      },
+      {
+        source: '/resource/mtc-sipro-pre-ple-set-2',
+        destination: '/resources/mtc-sipro-pre-ple-set-2',
+        permanent: true,
+      },
+      {
+        source: '/resource/lesson-notes-for-numbers-for-middle-class-term-iii-3',
+        destination: 'https://notes.notesug.com/resource/lesson-notes-for-numbers-for-middle-class-term-iii-3',
+        permanent: true,
+      },
       { source: '/class/:slug', destination: '/classes/:slug', permanent: true },
       { source: '/subject/:slug', destination: '/subjects/:slug', permanent: true },
       { source: '/collection/:slug', destination: '/collections/:slug', permanent: true },
