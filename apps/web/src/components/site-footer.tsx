@@ -22,6 +22,9 @@ export function SiteFooter({ note }: { note?: string | null }) {
           <Link href="/past-papers" className="text-muted-foreground hover:text-foreground">
             Past papers
           </Link>
+          <Link href="/ple-revision" className="text-muted-foreground hover:text-foreground">
+            PLE revision centre
+          </Link>
           <Link href="/collections" className="text-muted-foreground hover:text-foreground">
             Collections
           </Link>

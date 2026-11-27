@@ -1,0 +1,170 @@
+[
+  {
+    "slug": "fractions-and-decimals",
+    "subject": "Mathematics",
+    "title": "Fractions and decimals",
+    "aim": "Find part of a quantity, combine unlike fractions and explain decimal place value.",
+    "method": "For a fraction of a quantity, divide by the denominator to find one part. Multiply by the numerator. To add unlike fractions, first give the parts the same size.",
+    "example": "A tank holds 45 litres. Two fifths of its capacity is 45 ÷ 5 × 2 = 18 litres.",
+    "pitfall": "One third plus one third is two thirds. The pieces are still thirds, so the denominator stays the same.",
+    "questions": [
+      {
+        "prompt": "A tray has 36 eggs. How many eggs are in three quarters of the tray?",
+        "options": ["9", "27", "24"],
+        "answer": 1,
+        "reason": "One quarter is 36 ÷ 4 = 9 eggs. Three quarters is 3 × 9 = 27 eggs."
+      },
+      {
+        "prompt": "A tailor joins 1/2 m of cloth to 1/3 m. What is their total length before sewing?",
+        "options": ["2/5 m", "1/6 m", "5/6 m"],
+        "answer": 2,
+        "reason": "One half is 3/6 and one third is 2/6. Together they measure 5/6 m."
+      },
+      {
+        "prompt": "Which fraction in simplest form is equal to 0.45?",
+        "options": ["9/20", "45/10", "4/5"],
+        "answer": 0,
+        "reason": "The last digit is in the hundredths place. Divide both parts of 45/100 by 5 to get 9/20."
+      },
+      {
+        "prompt": "A tin holds 2.4 kg of flour. After 0.65 kg is used, how much remains?",
+        "options": ["2.15 kg", "1.75 kg", "1.35 kg"],
+        "answer": 1,
+        "reason": "Write 2.4 as 2.40. Subtract 0.65 to get 1.75 kg."
+      },
+      {
+        "prompt": "Which quantity is greater, 5/8 litre or 0.6 litre?",
+        "options": ["0.6 litre", "They are equal", "5/8 litre"],
+        "answer": 2,
+        "reason": "Divide 5 by 8 to get 0.625. Compare 0.625 with 0.600."
+      }
+    ]
+  },
+  {
+    "slug": "proportion-and-percentages",
+    "subject": "Mathematics",
+    "title": "Proportion and percentages",
+    "aim": "Use a unit price, share in a ratio and work out a percentage change.",
+    "method": "For direct proportion, find the value of one item first. For a percentage, identify which amount represents the whole.",
+    "example": "Six exercise books cost UGX 7,200. One costs UGX 1,200. At that rate, ten cost UGX 12,000.",
+    "pitfall": "A discount is the saving. Subtract the saving from the original price when the question asks what the buyer pays.",
+    "questions": [
+      {
+        "prompt": "Four equal bags hold 28 kg of beans. At the same rate, what will seven bags hold?",
+        "options": ["49 kg", "16 kg", "196 kg"],
+        "answer": 0,
+        "reason": "Each bag holds 28 ÷ 4 = 7 kg. Seven bags hold 7 × 7 = 49 kg."
+      },
+      {
+        "prompt": "A netball costs UGX 30,000. A shop takes off 20%. How much does the buyer pay?",
+        "options": ["UGX 6,000", "UGX 24,000", "UGX 36,000"],
+        "answer": 1,
+        "reason": "A fifth of 30,000 is 6,000. Subtract the saving to get UGX 24,000."
+      },
+      {
+        "prompt": "A class plants 15 mango seedlings out of 60 seedlings. What percentage are mango?",
+        "options": ["15%", "40%", "25%"],
+        "answer": 2,
+        "reason": "15 ÷ 60 = 1/4. One quarter of 100% is 25%."
+      },
+      {
+        "prompt": "Two clubs share 40 pencils in the ratio 3 to 5. How many does the smaller club get?",
+        "options": ["15", "24", "8"],
+        "answer": 0,
+        "reason": "There are 8 equal parts, each worth 5 pencils. The smaller share is 3 × 5 = 15."
+      },
+      {
+        "prompt": "A library had 80 books and gained 12. What was the percentage increase?",
+        "options": ["12%", "15%", "92%"],
+        "answer": 1,
+        "reason": "Compare the gain with the original 80 books. 12 ÷ 80 × 100 = 15%."
+      }
+    ]
+  },
+  {
+    "slug": "time-and-duration",
+    "subject": "Mathematics",
+    "title": "Time and duration",
+    "aim": "Read a 24-hour timetable and calculate journeys, breaks and arrival times.",
+    "method": "Mark the next whole hour. Count the minutes up to it, then add the remaining time. There are 60 minutes in one hour.",
+    "example": "A bus leaves at 08:45 and arrives at 10:10. Count 15 minutes to 09:00, one hour to 10:00, then 10 minutes. Total time is 1 hour 25 minutes.",
+    "pitfall": "09:50 to 10:10 takes 20 minutes. Subtracting the clock readings as decimal numbers gives a wrong answer.",
+    "questions": [
+      {
+        "prompt": "What is 3:25 p.m. in 24-hour time?",
+        "options": ["03:25", "13:25", "15:25"],
+        "answer": 2,
+        "reason": "For this afternoon time, add 12 to the hour. The minutes stay at 25."
+      },
+      {
+        "prompt": "A lesson starts at 08:50 and ends at 09:35. How long does it last?",
+        "options": ["45 minutes", "85 minutes", "35 minutes"],
+        "answer": 0,
+        "reason": "10 minutes to 09:00 plus 35 more minutes makes 45 minutes."
+      },
+      {
+        "prompt": "A taxi leaves at 11:40. The trip takes 55 minutes. When does it arrive?",
+        "options": ["11:95", "12:35", "12:45"],
+        "answer": 1,
+        "reason": "After 20 minutes it is noon. The remaining 35 minutes take it to 12:35."
+      },
+      {
+        "prompt": "Sports practice runs from 14:10 to 15:40, including a 15-minute break. How long is active practice?",
+        "options": ["90 minutes", "105 minutes", "75 minutes"],
+        "answer": 2,
+        "reason": "The full interval is 90 minutes. Take away the 15-minute break."
+      },
+      {
+        "prompt": "A bus must arrive at 07:15. The journey takes 1 hour 25 minutes. When should it leave?",
+        "options": ["05:50", "06:10", "05:40"],
+        "answer": 0,
+        "reason": "Count back one hour to 06:15, then 25 minutes to 05:50."
+      }
+    ]
+  },
+  {
+    "slug": "bones-and-joints",
+    "subject": "Integrated Science",
+    "title": "Bones and joints",
+    "aim": "Identify bones that protect organs and compare movement at the elbow and shoulder.",
+    "method": "A joint is where bones meet. The elbow bends and straightens like a hinge. The shoulder can move the upper arm in several directions.",
+    "example": "Skull → protects the brain. Rib cage → protects the heart and lungs.",
+    "pitfall": "When asked for a type of joint, give its type (such as hinge). When asked for an example, name a place in the body (such as the elbow).",
+    "questions": [
+      {
+        "prompt": "Which part of the skeleton surrounds the brain?",
+        "options": ["Rib cage", "Skull", "Backbone"],
+        "answer": 1,
+        "reason": "The brain lies inside the skull."
+      },
+      {
+        "prompt": "Which organs are protected by the rib cage?",
+        "options": ["Heart and lungs", "Eyes and ears", "Brain and spinal cord"],
+        "answer": 0,
+        "reason": "The ribs form a protective cage around the heart and lungs in the chest."
+      },
+      {
+        "prompt": "Which pair gives a joint and its type correctly?",
+        "options": ["Shoulder — hinge", "Elbow — ball and socket", "Elbow — hinge"],
+        "answer": 2,
+        "reason": "Bending and straightening the elbow illustrates hinge movement."
+      },
+      {
+        "prompt": "Which joint lets a learner swing the upper arm forwards, backwards and sideways?",
+        "options": ["Elbow", "Shoulder", "Finger joint"],
+        "answer": 1,
+        "reason": "The ball-and-socket joint at the shoulder allows movement in several directions."
+      },
+      {
+        "prompt": "What makes the forearm move when a learner bends the elbow?",
+        "options": [
+          "A muscle contracts and pulls on a bone",
+          "The upper arm bone shortens",
+          "The elbow joint forms a new bone"
+        ],
+        "answer": 0,
+        "reason": "A contracting muscle pulls on bone through a tendon. The bones move at the joint."
+      }
+    ]
+  }
+]
