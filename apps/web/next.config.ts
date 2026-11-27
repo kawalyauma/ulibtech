@@ -76,11 +76,6 @@ const config: NextConfig = {
   async redirects() {
     return [
       {
-        source: '/resource/p1-term-3-literacy-1-workbook',
-        destination: '/resources/p1-term-3-literacy-1-workbook',
-        permanent: true,
-      },
-      {
         source: '/resource/mtc-sipro-pre-ple-set-2',
         destination: '/resources/mtc-sipro-pre-ple-set-2',
         permanent: true,
