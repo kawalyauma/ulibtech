@@ -45,7 +45,7 @@ export function PleMathematicsPractice() {
         PLE Mathematics practice with worked answers
       </h2>
       <p className="text-muted-foreground mt-2 max-w-prose text-sm">
-        Try these five original NotesUG questions on fractions, decimals, proportion and
+        Start with five original NotesUG questions on fractions, decimals, proportion and
         percentages. Write down each step before opening the answer. The past papers are listed
         below.
       </p>
@@ -66,6 +66,39 @@ export function PleMathematicsPractice() {
           </li>
         ))}
       </ol>
+      <section aria-labelledby="ple-data-handling" className="mt-6 border-t pt-4">
+        <h3 id="ple-data-handling" className="font-semibold">
+          Data handling: compare two reading groups
+        </h3>
+        <p className="mt-2 text-sm">
+          In this original NotesUG exercise, each number shows how many books one pupil read in a
+          month. In the Mango group the counts are 4, 2, 7, 4 and 3. In the Pawpaw group they are 3,
+          5, 4, 3 and 5.
+        </p>
+        <p className="mt-2 text-sm">
+          Which group has the greater mean? Which has the greater range? Find the median and mode of
+          the Mango group as a check.
+        </p>
+        <details className="mt-2 text-sm">
+          <summary className="text-primary cursor-pointer font-medium">
+            Check the reading groups answer
+          </summary>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            <li>
+              Each group read 20 books between five pupils. Both means are 20 ÷ 5 = 4 books per
+              pupil.
+            </li>
+            <li>
+              Mango ranges from 2 to 7, so its range is 7 − 2 = 5 books. Pawpaw ranges from 3 to 5,
+              so its range is 2 books. Mango has the greater spread despite the equal means.
+            </li>
+            <li>
+              Put Mango in order: 2, 3, 4, 4, 7. The middle value is 4 (the median), and 4 occurs
+              most often (the mode).
+            </li>
+          </ol>
+        </details>
+      </section>
       <p className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
         <Link href="/p7/mathematics/marking-guides" className="text-primary underline">
           Browse P7 Mathematics marking guides
@@ -74,7 +107,7 @@ export function PleMathematicsPractice() {
           href="https://ncdc.go.ug/wp-content/uploads/2024/07/PRIMARY-SEVEN-SET-ONE.pdf"
           className="text-primary underline"
         >
-          NCDC Primary Seven Curriculum, Mathematics Topic 5
+          NCDC Primary Seven Curriculum, Mathematics Topics 5 and 7
         </a>
       </p>
     </section>
